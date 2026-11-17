@@ -74,7 +74,7 @@ void main() {
       findsOneWidget,
     );
     tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
-    await tester.tap(find.text('Trouble with red'));
+    await tester.tap(find.text('Red color blindness'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Compare with original'));
     await tester.tap(find.text('Compare with original'));
@@ -96,7 +96,7 @@ void main() {
       tester
           .widget<ChoiceChip>(
             find.ancestor(
-              of: find.text('Trouble with red'),
+              of: find.text('Red color blindness'),
               matching: find.byType(ChoiceChip),
             ),
           )
@@ -182,10 +182,10 @@ void main() {
     );
     tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
     await tester.pump();
-    await tester.tap(find.text('No color at all'));
+    await tester.tap(find.text('Total color blindness'));
     await tester.pump();
     expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('Trouble with red'));
+    await tester.tap(find.text('Red color blindness'));
     await tester.pump();
     expect(settings.mode, VisionMode.protan);
     expect(tester.widget<Slider>(find.byType(Slider)).value, .55);
@@ -206,10 +206,45 @@ void main() {
     // Red-green is a group heading, not a selectable fourth type.
     expect(find.byType(VisionPicker), findsOneWidget);
     expect(find.text('RED – GREEN DEFICIENCY'), findsOneWidget);
-    expect(find.text('Trouble with green'), findsOneWidget);
-    expect(find.text('Trouble with red'), findsOneWidget);
+    expect(find.text('Green color blindness'), findsOneWidget);
+    expect(find.text('Red color blindness'), findsOneWidget);
     expect(find.text('Check your eyes'), findsOneWidget);
-    expect(find.textContaining('Deutan (deuteranopia)'), findsOneWidget);
+    expect(find.textContaining('Deuteranopia · deuteranomaly'), findsOneWidget);
+  });
+
+  testWidgets('answering every question right reads as typical', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(const MaterialApp(home: EyeTest()));
+    await tester.pumpAndSettle();
+
+    for (var i = 0; i < questionCount; i++) {
+      if (i < plates.length) {
+        // Tap the digit actually hidden in the plate.
+        await tester.tap(
+          find.widgetWithText(OutlinedButton, '${plates[i].digit}'),
+        );
+      } else {
+        // The odd swatch is fixed per question, same formula as the screen.
+        final odd = (i * 7 + 2) % 4;
+        await tester.tap(find.bySemanticsLabel('Square ${odd + 1}'));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    semantics.dispose();
+    expect(
+      find.textContaining('No sign of color vision deficiency'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Red – green: 0% missed'), findsOneWidget);
+    expect(find.textContaining('Blue – yellow: 0% missed'), findsOneWidget);
+    // Typical suggests nothing, so there is no camera shortcut to offer.
+    expect(find.text('View camera as this type'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the screening runs end to end and suggests a type', (
@@ -239,7 +274,13 @@ void main() {
 
     // Skip every question: "not sure" counts as a miss on all three axes.
     for (var i = 0; i < questionCount; i++) {
-      expect(find.textContaining('of $questionCount'), findsOneWidget);
+      // One answer must advance exactly one question, never jump to the end.
+      expect(
+        find.textContaining('${i + 1} of $questionCount'),
+        findsOneWidget,
+        reason: 'should be on question ${i + 1}',
+      );
+      expect(find.text('Result'), findsNothing, reason: 'early result');
       await tester.tap(find.text('Not sure / Skip'));
       await tester.pumpAndSettle();
     }

@@ -13,21 +13,34 @@ extension Copy on BuildContext {
 
 String modeName(BuildContext context, VisionMode mode) => switch (mode) {
   VisionMode.normal => context.t('Typical vision', 'Thị giác thông thường'),
-  VisionMode.protan => context.t('Trouble with red', 'Khó với màu đỏ'),
-  VisionMode.deutan => context.t('Trouble with green', 'Khó với màu xanh lá'),
+  VisionMode.protan => context.t('Red color blindness', 'Mù màu đỏ'),
+  VisionMode.deutan => context.t('Green color blindness', 'Mù màu xanh lá'),
   VisionMode.tritan => context.t(
-    'Trouble with blue and yellow',
-    'Khó với xanh dương – vàng',
+    'Blue–yellow color blindness',
+    'Mù màu xanh dương – vàng',
   ),
-  VisionMode.grayscale => context.t('No color at all', 'Không thấy màu'),
+  VisionMode.grayscale => context.t(
+    'Total color blindness',
+    'Mù màu toàn phần',
+  ),
 };
 
-/// Clinical name, shown as a secondary line so the terminology is still there.
-String? modeClinical(VisionMode mode) => switch (mode) {
+/// Clinical names, shown as a secondary line: the complete form (-opia) and
+/// the partial one (-omaly) the severity slider moves between.
+String? modeClinical(BuildContext context, VisionMode mode) => switch (mode) {
   VisionMode.normal => null,
-  VisionMode.protan => 'Protan (protanopia)',
-  VisionMode.deutan => 'Deutan (deuteranopia)',
-  VisionMode.tritan => 'Tritan (tritanopia)',
+  VisionMode.protan => context.t(
+    'Protanopia · protanomaly',
+    'Protanopia · protanomaly (rối loạn sắc giác đỏ)',
+  ),
+  VisionMode.deutan => context.t(
+    'Deuteranopia · deuteranomaly',
+    'Deuteranopia · deuteranomaly (rối loạn sắc giác xanh lá)',
+  ),
+  VisionMode.tritan => context.t(
+    'Tritanopia · tritanomaly',
+    'Tritanopia · tritanomaly (rối loạn sắc giác xanh dương)',
+  ),
   VisionMode.grayscale => 'Achromatopsia',
 };
 

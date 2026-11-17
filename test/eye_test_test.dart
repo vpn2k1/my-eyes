@@ -35,10 +35,16 @@ int _gray(Color color) =>
 void main() {
   group('plate colors', () {
     for (final plate in plates) {
-      final label = '${plate.axis.name} ${plate.digit}';
+      final label = '${plate.axes.map((a) => a.name).join('+')} ${plate.digit}';
 
-      test('$label collapses for its own axis', () {
-        expect(_diffAs(plate.figure, plate.ground, plate.axis), lessThan(13));
+      test('$label collapses for every axis it claims', () {
+        for (final axis in plate.axes) {
+          expect(
+            _diffAs(plate.figure, plate.ground, axis),
+            lessThan(13),
+            reason: '$label must collapse for ${axis.name}',
+          );
+        }
       });
 
       test('$label is clearly different in typical vision', () {
@@ -48,13 +54,13 @@ void main() {
         );
       });
 
-      test('$label stays separable on the other two axes', () {
+      test('$label stays separable on the axes it does not claim', () {
         for (final other in [
           VisionMode.protan,
           VisionMode.deutan,
           VisionMode.tritan,
         ]) {
-          if (other == plate.axis) continue;
+          if (plate.axes.contains(other)) continue;
           expect(
             _diffAs(plate.figure, plate.ground, other),
             greaterThanOrEqualTo(40),
@@ -72,16 +78,43 @@ void main() {
       });
     }
 
-    test('every axis gets four questions', () {
+    test('every axis gets the same number of questions', () {
       for (final axis in [
         VisionMode.protan,
         VisionMode.deutan,
         VisionMode.tritan,
       ]) {
-        final asked = plates.where((p) => p.axis == axis).length * 2;
-        expect(asked, 4, reason: '${axis.name} should be asked four times');
+        expect(
+          creditsFor(axis),
+          8,
+          reason: '${axis.name} should be asked eight times',
+        );
       }
-      expect(questionCount, 12);
+      expect(questionCount, 20);
+    });
+
+    test('both groups are covered by combos as well as single axes', () {
+      // Combos are what make the red-green group readable as a group; without
+      // them a red/green pair could only be scored as one axis.
+      expect(
+        plates.where((p) => p.axes.length > 1).length,
+        greaterThanOrEqualTo(2),
+      );
+      for (final axis in [
+        VisionMode.protan,
+        VisionMode.deutan,
+        VisionMode.tritan,
+      ]) {
+        expect(
+          plates.where((p) => p.axes.length == 1 && p.axes.first == axis),
+          isNotEmpty,
+          reason: '${axis.name} needs a single-axis plate of its own',
+        );
+      }
+    });
+
+    test('no two plates hide the same digit', () {
+      expect(plates.map((p) => p.digit).toSet().length, plates.length);
     });
 
     test('every digit draws a readable glyph', () {
@@ -123,13 +156,13 @@ void main() {
     };
 
     test('a clean run reads as typical', () {
-      expect(verdictOf(score(1, 0, 1)), Verdict.typical);
-      expect(suggestedMode(Verdict.typical, score(1, 0, 1)), isNull);
+      expect(verdictOf(score(2, 1, 2)), Verdict.typical);
+      expect(suggestedMode(Verdict.typical, score(2, 1, 2)), isNull);
     });
 
     test('red-green misses read as red-green', () {
-      expect(verdictOf(score(1, 1, 0)), Verdict.redGreen);
-      expect(verdictOf(score(0, 4, 1)), Verdict.redGreen);
+      expect(verdictOf(score(4, 4, 0)), Verdict.redGreen);
+      expect(verdictOf(score(2, 6, 1)), Verdict.redGreen);
     });
 
     test('blue-yellow misses read as blue-yellow', () {
@@ -139,7 +172,24 @@ void main() {
     });
 
     test('misses in both groups read as broad', () {
-      expect(verdictOf(score(2, 2, 3)), Verdict.broad);
+      expect(verdictOf(score(4, 4, 3)), Verdict.broad);
+    });
+
+    test('a full miss is reported as every question missed', () {
+      final all = score(
+        creditsFor(VisionMode.protan),
+        creditsFor(VisionMode.deutan),
+        creditsFor(VisionMode.tritan),
+      );
+      expect(missRate(all, Group.redGreen), 1);
+      expect(missRate(all, Group.blueYellow), 1);
+      expect(verdictOf(all), Verdict.broad);
+    });
+
+    test('a single slip never flags a group', () {
+      for (final result in [score(1, 0, 0), score(0, 1, 0), score(0, 0, 1)]) {
+        expect(verdictOf(result), Verdict.typical);
+      }
     });
 
     test('protan is only suggested on a clear margin', () {

@@ -109,8 +109,8 @@ class _VisionPickerState extends State<VisionPicker> {
             title: Text(context.t('Check your eyes', 'Kiểm tra mắt bạn')),
             subtitle: Text(
               context.t(
-                'A 12-question screening that suggests a type',
-                '12 câu hỏi ngắn để gợi ý loại phù hợp',
+                '$questionCount questions across red–green and blue–yellow',
+                '$questionCount câu, đủ nhóm đỏ – xanh lá và xanh dương – vàng',
               ),
             ),
             trailing: const Icon(Icons.chevron_right),
@@ -180,7 +180,7 @@ class _ModeRow extends StatelessWidget {
         ),
         title: Text(modeName(context, mode)),
         subtitle: Text(
-          [?modeClinical(mode), context.copy(modeNote(mode))].join(' · '),
+          [?modeClinical(context, mode), context.copy(modeNote(mode))].join(' · '),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => onTap(mode),

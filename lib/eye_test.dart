@@ -9,15 +9,18 @@ import 'palette.dart';
 import 'vision.dart';
 
 /// A pseudoisochromatic color pair: [figure] and [ground] collapse into nearly
-/// the same color for someone with [axis] vision, but stay clearly different
-/// for everyone else — including the other two axes, which is what lets the
-/// test tell the types apart.
+/// the same color for someone whose vision matches [axes], but stay clearly
+/// different for everyone else.
+///
+/// [axes] holds one axis for the pairs that tell protan from deutan, and both
+/// of them for the classic red–green combos, which collapse for either type —
+/// that is what makes them read as the red–green group rather than one axis.
 ///
 /// The pair also matches in lightness, so the answer cannot be found by
 /// brightness alone. `test/eye_test_test.dart` asserts all four properties.
 class Plate {
-  const Plate(this.axis, this.figure, this.ground, this.digit);
-  final VisionMode axis;
+  const Plate(this.axes, this.figure, this.ground, this.digit);
+  final Set<VisionMode> axes;
   final Color figure, ground;
 
   /// Digit hidden in the dot plate, and the answer for the swatch question.
@@ -26,21 +29,60 @@ class Plate {
 
 /// Found by brute-force search over the RGB grid against the severity 1.0
 /// Machado matrices; every pair is re-verified by the unit test.
+///
+/// A plain yellow–blue pair is deliberately absent: tritan vision confuses
+/// blue with green and yellow with pink, so a yellow and a blue that collapse
+/// for tritan only exist at different lightness — and a lightness difference
+/// hands over the answer without any color vision at all.
 const plates = <Plate>[
-  Plate(VisionMode.protan, Color(0xff2266bb), Color(0xff8855bb), 6),
-  Plate(VisionMode.protan, Color(0xff2266dd), Color(0xffbb22dd), 3),
-  Plate(VisionMode.deutan, Color(0xff229966), Color(0xffee3377), 5),
-  Plate(VisionMode.deutan, Color(0xff22cc22), Color(0xffee9944), 8),
-  Plate(VisionMode.tritan, Color(0xff22dd22), Color(0xff55ccbb), 2),
-  Plate(VisionMode.tritan, Color(0xff55bb22), Color(0xff66aaaa), 7),
+  // Single-axis pairs, the only ones that can tell protan from deutan apart.
+  Plate({VisionMode.protan}, Color(0xff2266bb), Color(0xff8855bb), 6),
+  Plate({VisionMode.protan}, Color(0xff2266dd), Color(0xffbb22dd), 3),
+  Plate({VisionMode.deutan}, Color(0xff229966), Color(0xffee3377), 5),
+  Plate({VisionMode.deutan}, Color(0xff22cc22), Color(0xffee9944), 8),
+  // Red–green combos: red/green and orange/green, collapsing for both axes.
+  Plate(
+    {VisionMode.protan, VisionMode.deutan},
+    Color(0xff9a634d),
+    Color(0xff42794d),
+    4,
+  ),
+  Plate(
+    {VisionMode.protan, VisionMode.deutan},
+    Color(0xfffdc637),
+    Color(0xffa5dc37),
+    9,
+  ),
+  // Blue–yellow combos: green/teal, blue/green and yellow/pink, the pairs
+  // tritan vision actually collapses.
+  Plate({VisionMode.tritan}, Color(0xff22dd22), Color(0xff55ccbb), 2),
+  Plate({VisionMode.tritan}, Color(0xff55bb22), Color(0xff66aaaa), 7),
+  Plate({VisionMode.tritan}, Color(0xff6ebbf2), Color(0xff00d19a), 1),
+  Plate({VisionMode.tritan}, Color(0xff846300), Color(0xff8f4d79), 0),
 ];
 
-/// The 12 questions: every plate asked once as a dot plate and once as a
-/// swatch grid, so each axis gets four questions.
+/// Every plate asked once as a dot plate and once as a swatch grid.
 final questionCount = plates.length * 2;
 
-/// Misses (wrong answers and "not sure") per axis.
+/// Misses per axis. A missed question counts for every axis its plate
+/// collapses for, so a red–green combo counts for protan and deutan both.
 typedef Score = Map<VisionMode, int>;
+
+/// Misses an axis can collect: one per question whose plate collapses for it.
+/// Derived from [plates] so the thresholds follow the plate list.
+int creditsFor(VisionMode axis) =>
+    plates.where((plate) => plate.axes.contains(axis)).length * 2;
+
+enum Group { redGreen, blueYellow }
+
+/// Share of a group's misses, 0 to 1. Red–green counts protan and deutan
+/// credits together, matching how its combos score on both.
+double missRate(Score score, Group group) => switch (group) {
+  Group.redGreen =>
+    (score[VisionMode.protan]! + score[VisionMode.deutan]!) /
+        (creditsFor(VisionMode.protan) + creditsFor(VisionMode.deutan)),
+  Group.blueYellow => score[VisionMode.tritan]! / creditsFor(VisionMode.tritan),
+};
 
 enum Verdict { typical, redGreen, blueYellow, broad }
 
@@ -48,7 +90,8 @@ enum Verdict { typical, redGreen, blueYellow, broad }
 VisionMode? suggestedMode(Verdict verdict, Score score) => switch (verdict) {
   Verdict.typical => null,
   Verdict.blueYellow => VisionMode.tritan,
-  // The protan/deutan margin is thin, so lean only on a clear difference.
+  // The protan/deutan margin only comes from the single-axis plates, so lean
+  // on it only when it is clear.
   Verdict.redGreen || Verdict.broad =>
     (score[VisionMode.protan]! - score[VisionMode.deutan]!).abs() >= 2
         ? (score[VisionMode.protan]! > score[VisionMode.deutan]!
@@ -57,12 +100,16 @@ VisionMode? suggestedMode(Verdict verdict, Score score) => switch (verdict) {
         : VisionMode.deutan,
 };
 
+/// A third of a group missed is the line: stray slips stay under it, a real
+/// deficiency misses most of the group.
+const missLine = 1 / 3;
+
 Verdict verdictOf(Score score) {
-  final redGreen = score[VisionMode.protan]! + score[VisionMode.deutan]!;
-  final blueYellow = score[VisionMode.tritan]!;
-  if (redGreen >= 3 && blueYellow >= 3) return Verdict.broad;
-  if (redGreen >= 2) return Verdict.redGreen;
-  if (blueYellow >= 2) return Verdict.blueYellow;
+  final redGreen = missRate(score, Group.redGreen) >= missLine;
+  final blueYellow = missRate(score, Group.blueYellow) >= missLine;
+  if (redGreen && blueYellow) return Verdict.broad;
+  if (redGreen) return Verdict.redGreen;
+  if (blueYellow) return Verdict.blueYellow;
   return Verdict.typical;
 }
 
@@ -157,7 +204,7 @@ class PlatePainter extends CustomPainter {
 // The screening flow
 // ---------------------------------------------------------------------------
 
-/// Twelve questions: every plate once as a dot plate, once as a swatch grid.
+/// Every plate asked once as a dot plate and once as a swatch grid.
 /// Pops a [VisionMode] when the user wants to view the camera as that type,
 /// or null to go back and choose manually.
 class EyeTest extends StatefulWidget {
@@ -190,7 +237,11 @@ class _EyeTestState extends State<EyeTest> {
   }
 
   void _answer({required bool correct}) {
-    if (!correct) _score[_plate.axis] = _score[_plate.axis]! + 1;
+    if (!correct) {
+      for (final axis in _plate.axes) {
+        _score[axis] = _score[axis]! + 1;
+      }
+    }
     if (_index + 1 < questionCount) {
       setState(() => _index++);
       return;
@@ -204,7 +255,7 @@ class _EyeTestState extends State<EyeTest> {
     final mode = suggestedMode(verdict, _score);
     final chosen = await Navigator.of(context).push<VisionMode?>(
       MaterialPageRoute(
-        builder: (_) => _Result(verdict: verdict, mode: mode),
+        builder: (_) => _Result(verdict: verdict, mode: mode, score: _score),
       ),
     );
     if (!mounted) return;
@@ -227,16 +278,10 @@ class _EyeTestState extends State<EyeTest> {
       ),
       body: PageColumn(
         children: [
-          Text(
-            context.t(
-              'Question ${_index + 1} of $questionCount',
-              'Câu ${_index + 1} / $questionCount',
-            ),
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _isDots
+          QuestionHeader(
+            step: _index + 1,
+            total: questionCount,
+            prompt: _isDots
                 ? context.t(
                     'Which number do you see?',
                     'Bạn thấy số nào trong hình?',
@@ -245,35 +290,52 @@ class _EyeTestState extends State<EyeTest> {
                     'Which square is a different color?',
                     'Ô nào khác màu với ba ô còn lại?',
                   ),
-            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           if (_isDots)
             _DotPlate(plate: plate, seed: _index)
           else
-            _SwatchGrid(
-              plate: plate,
-              odd: _oddSwatch,
+            SwatchGrid(
+              colors: [
+                for (var i = 0; i < 4; i++)
+                  i == _oddSwatch ? plate.figure : plate.ground,
+              ],
               onPick: (index) => _answer(correct: index == _oddSwatch),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           if (_isDots)
             Wrap(
+              alignment: WrapAlignment.center,
               spacing: 12,
               runSpacing: 12,
               children: [
                 for (final digit in _choices)
                   OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      fixedSize: const Size(72, 60),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                     onPressed: () => _answer(correct: digit == plate.digit),
-                    child: Text('$digit', style: const TextStyle(fontSize: 20)),
+                    child: Text(
+                      '$digit',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
               ],
             ),
           const SizedBox(height: 8),
           // Always available: "not sure" counts as a miss, which is the point.
-          TextButton(
-            onPressed: () => _answer(correct: false),
-            child: Text(context.t('Not sure / Skip', 'Không rõ / Bỏ qua')),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _answer(correct: false),
+              icon: const Icon(Icons.help_outline),
+              label: Text(context.t('Not sure / Skip', 'Không rõ / Bỏ qua')),
+            ),
           ),
         ],
       ),
@@ -287,137 +349,122 @@ class _DotPlate extends StatelessWidget {
   final int seed;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Semantics(
-      // Naming the digit here would hand over the answer, so describe the
-      // task instead: this question can only be answered by seeing color.
-      label: context.t(
-        'Color dot plate. This question needs color vision to answer; choose Not sure to skip it.',
-        'Đĩa chấm màu. Câu này cần nhìn màu mới trả lời được; chọn Không rõ để bỏ qua.',
-      ),
-      excludeSemantics: true,
-      child: SizedBox.square(
-        dimension: 280,
-        child: CustomPaint(painter: PlatePainter(plate, seed)),
-      ),
-    ),
-  );
-}
-
-class _SwatchGrid extends StatelessWidget {
-  const _SwatchGrid({
-    required this.plate,
-    required this.odd,
-    required this.onPick,
-  });
-  final Plate plate;
-  final int odd;
-  final ValueChanged<int> onPick;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: SizedBox(
-      width: 280,
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (var i = 0; i < 4; i++)
-            Semantics(
-              label: context.t('Square ${i + 1}', 'Ô ${i + 1}'),
-              button: true,
-              excludeSemantics: true,
-              child: InkWell(
-                onTap: () => onPick(i),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 134,
-                  height: 134,
-                  decoration: BoxDecoration(
-                    color: i == odd ? plate.figure : plate.ground,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-        ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Center(
+      child: Semantics(
+        // Naming the digit here would hand over the answer, so describe the
+        // task instead: this question can only be answered by seeing color.
+        label: context.t(
+          'Color dot plate. This question needs color vision to answer; choose Not sure to skip it.',
+          'Đĩa chấm màu. Câu này cần nhìn màu mới trả lời được; chọn Không rõ để bỏ qua.',
+        ),
+        excludeSemantics: true,
+        child: SizedBox.square(
+          dimension: math.min(constraints.maxWidth, 320),
+          child: CustomPaint(painter: PlatePainter(plate, seed)),
+        ),
       ),
     ),
   );
 }
 
 class _Result extends StatelessWidget {
-  const _Result({required this.verdict, required this.mode});
+  const _Result({
+    required this.verdict,
+    required this.mode,
+    required this.score,
+  });
   final Verdict verdict;
   final VisionMode? mode;
+  final Score score;
+
+  String _share(BuildContext context, Group group) {
+    final percent = (missRate(score, group) * 100).round();
+    final label = switch (group) {
+      Group.redGreen => context.t('Red – green', 'Đỏ – xanh lá'),
+      Group.blueYellow => context.t('Blue – yellow', 'Xanh dương – vàng'),
+    };
+    return context.t('$label: $percent% missed', '$label: sai $percent%');
+  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(context.t('Result', 'Kết quả'))),
-    body: PageColumn(
-      children: [
-        Card(
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(color: brandAmber, width: 2),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: brandAmber),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        context.t('Indicative result', 'Kết quả tham khảo'),
-                        style: Theme.of(context).textTheme.titleMedium,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(context.t('Result', 'Kết quả'))),
+      body: PageColumn(
+        children: [
+          Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              side: const BorderSide(color: brandAmber, width: 2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: brandAmber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          context.t('Indicative result', 'Kết quả tham khảo'),
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.copy(verdictText(verdict)),
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  // Both groups every time, so a clean group is visible too.
+                  for (final group in Group.values)
+                    Text(
+                      _share(context, group),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  if (mode case final suggested?) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      context.t(
+                        'Closest simulation: ${modeName(context, suggested)}.',
+                        'Mô phỏng gần nhất: ${modeName(context, suggested)}.',
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  context.copy(verdictText(verdict)),
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                if (mode case final suggested?) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    context.t(
-                      'Closest simulation: ${modeName(context, suggested)}.',
-                      'Mô phỏng gần nhất: ${modeName(context, suggested)}.',
-                    ),
-                  ),
                 ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(context.copy(screeningNotice)),
-        const SizedBox(height: 8),
-        Text(context.copy(simulationNotice)),
-        const SizedBox(height: 20),
-        if (mode case final suggested?)
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop(suggested),
-            icon: const Icon(Icons.videocam_outlined),
-            label: Text(
-              context.t(
-                'View camera as this type',
-                'Dùng loại này để xem camera',
               ),
             ),
           ),
-        const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.t('Choose another type', 'Chọn loại khác')),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 16),
+          Text(context.copy(screeningNotice)),
+          const SizedBox(height: 8),
+          Text(context.copy(simulationNotice)),
+          const SizedBox(height: 20),
+          if (mode case final suggested?)
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(suggested),
+              icon: const Icon(Icons.videocam_outlined),
+              label: Text(
+                context.t(
+                  'View camera as this type',
+                  'Dùng loại này để xem camera',
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.t('Choose another type', 'Chọn loại khác')),
+          ),
+        ],
+      ),
+    );
+  }
 }

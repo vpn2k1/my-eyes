@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'content.dart';
+import 'eye_test.dart';
 import 'media.dart';
 import 'simulator.dart';
 import 'page_column.dart';
@@ -232,6 +233,14 @@ class _HomeState extends State<Home> {
     ),
   );
 
+  Future<void> _runEyeTest() async {
+    final suggested = await Navigator.of(
+      context,
+    ).push<VisionMode?>(MaterialPageRoute(builder: (_) => const EyeTest()));
+    if (!mounted || suggested == null) return;
+    await _openSimulator(mode: suggested);
+  }
+
   void _guidance() => Navigator.of(
     context,
   ).push<void>(MaterialPageRoute(builder: (_) => Guidance(program: _program)));
@@ -323,6 +332,21 @@ class _HomeState extends State<Home> {
               'Khám phá sáu ảnh mẫu chân thực ngoại tuyến',
             ),
             onTap: _busy ? null : _explore,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            context.t('Check your eyes', 'Kiểm tra mắt'),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          _Entry(
+            icon: Icons.search,
+            title: context.t('Test your color vision', 'Kiểm tra sắc giác'),
+            description: context.t(
+              '$questionCount questions covering red–green and blue–yellow',
+              '$questionCount câu, đủ nhóm đỏ – xanh lá và xanh dương – vàng',
+            ),
+            onTap: _busy ? null : () => unawaited(_runEyeTest()),
           ),
           if (_busy) const LinearProgressIndicator(),
         ],

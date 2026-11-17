@@ -62,6 +62,9 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
   bool _disposed = false;
   bool _loading = true;
   bool _blocked = false;
+  bool _torch = false;
+  bool _hasFront = false;
+  CameraLensDirection _lens = CameraLensDirection.back;
   String? _error;
   bool get _isCamera => widget.photo == null && widget.scene == null;
   bool get _cameraWanted => !_disposed && _foreground && !_compare && !_blocked;
@@ -143,15 +146,19 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       }
       final devices = await availableCameras();
       if (!_cameraWanted) return;
-      final rear = devices
-          .where((camera) => camera.lensDirection == CameraLensDirection.back)
-          .firstOrNull;
-      if (rear == null) {
-        throw CameraException('NoCamera', 'No rear camera available.');
+      debugPrint('MYEYES open lens=$_lens devices=${devices.map((c) => c.lensDirection).toList()}');
+      _hasFront = devices.any(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+      );
+      final lens =
+          devices.where((camera) => camera.lensDirection == _lens).firstOrNull ??
+          devices.firstOrNull;
+      if (lens == null) {
+        throw CameraException('NoCamera', 'No camera available.');
       }
       opening = CameraController(
-        rear,
-        ResolutionPreset.medium,
+        lens,
+        ResolutionPreset.high,
         enableAudio: false,
       );
       await opening.initialize();
@@ -167,6 +174,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         }
       });
       _controller = controller;
+      _torch = false;
       opening = null;
     } on CameraException catch (error) {
       if (_cameraWanted) {
@@ -187,6 +195,47 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
     } finally {
       if (opening != null) await _disposeCamera(opening);
       if (mounted && !_disposed) setState(() => _loading = false);
+    }
+  }
+
+  /// A new lens means a new controller, so dispose through the same queue
+  /// open and close use, or the two races and leaves the camera stuck.
+  Future<void> _flipLens() {
+    if (!_hasFront || _loading || _capturing) return _cameraWork;
+    setState(() {
+      _lens = _lens == CameraLensDirection.back
+          ? CameraLensDirection.front
+          : CameraLensDirection.back;
+    });
+    debugPrint('MYEYES flip -> $_lens');
+    _cameraWork = _cameraWork.then((_) async {
+      final controller = _controller;
+      _controller = null;
+      if (controller != null) await _disposeCamera(controller);
+    });
+    return _syncCamera();
+  }
+
+  Future<void> _toggleTorch() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    final wanted = !_torch;
+    try {
+      await controller.setFlashMode(wanted ? FlashMode.torch : FlashMode.off);
+      if (mounted && !_disposed) setState(() => _torch = wanted);
+    } on CameraException {
+      if (mounted && !_disposed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.t(
+                'This camera has no flash.',
+                'Camera này không có đèn flash.',
+              ),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -417,8 +466,25 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                         icon: const Icon(Icons.arrow_back),
                       ),
                       const SizedBox(width: 4),
-                      if (controller != null)
+                      if (controller != null) ...[
                         Expanded(child: _simulatingBadge()),
+                        if (_lens == CameraLensDirection.back)
+                          IconButton(
+                            tooltip: context.t('Flash', 'Đèn flash'),
+                            color: _torch ? brandAmber : brandInk,
+                            onPressed: () => unawaited(_toggleTorch()),
+                            icon: Icon(
+                              _torch ? Icons.flash_on : Icons.flash_off,
+                            ),
+                          ),
+                        if (_hasFront)
+                          IconButton(
+                            tooltip: context.t('Switch camera', 'Đổi camera'),
+                            color: brandInk,
+                            onPressed: () => unawaited(_flipLens()),
+                            icon: const Icon(Icons.cameraswitch_outlined),
+                          ),
+                      ],
                     ],
                   ),
                 ),
@@ -475,15 +541,24 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
 
   /// Fill the screen without distorting the preview's aspect ratio.
   Widget _coveringPreview(CameraController controller) => LayoutBuilder(
-    builder: (context, constraints) => FittedBox(
-      fit: BoxFit.cover,
-      clipBehavior: Clip.hardEdge,
-      child: SizedBox(
-        width: constraints.maxWidth,
-        height: constraints.maxWidth / controller.value.aspectRatio,
-        child: CameraPreview(controller),
-      ),
-    ),
+    builder: (context, constraints) {
+      // value.aspectRatio is sensor-side (landscape); CameraPreview flips its
+      // own AspectRatio in portrait, so the box has to flip too -- a tight
+      // SizedBox with the wrong ratio stretches the texture instead.
+      final sensor = controller.value.aspectRatio;
+      final ratio = constraints.maxWidth >= constraints.maxHeight
+          ? sensor
+          : 1 / sensor;
+      return FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: constraints.maxWidth,
+          height: constraints.maxWidth / ratio,
+          child: CameraPreview(controller),
+        ),
+      );
+    },
   );
 
   Widget _scrim({required Alignment begin, required Widget child}) =>
@@ -898,7 +973,7 @@ class _OnboardingExampleState extends State<OnboardingExample> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(context.t('Original', 'Ảnh gốc')),
-            Text(context.t('Deutan simulation', 'Mô phỏng Deutan')),
+            Text(modeName(context, VisionMode.deutan)),
           ],
         ),
         const SizedBox(height: 8),
