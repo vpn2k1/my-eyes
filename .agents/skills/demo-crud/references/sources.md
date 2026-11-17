@@ -1,0 +1,6 @@
+# Nguồn tham khảo
+
+Hướng dẫn tiếng Việt trong skill này được viết cho Xưởng App Demo, sử dụng các ý tưởng phù hợp từ hai nguồn dưới đây.
+
+- [viswanathanb/vibe-app-skill, commit 17f005b](https://github.com/viswanathanb/vibe-app-skill/tree/17f005b3342af3e3cc77ea50a341e99649997655). Tham khảo cách chia việc theo thực thể và kiểm tra từ dữ liệu tới giao diện trong `crud-app-scaffold`, `crud-resource`, `crud-backend-go`, `crud-frontend-react`, `crud-auth`, `crud-authz`, `crud-e2e-playwright` và `crud-quality-gates`. `crud-deploy-render` là tài liệu triển khai dành riêng cho Render. Commit được kiểm tra không có tệp giấy phép và skill này không chứa mã, script hay template nguyên gốc từ repo đó.
+- [guangyuspace/codex-gamestudio-skill, commit 42838f2](https://github.com/guangyuspace/codex-gamestudio-skill/tree/42838f2a4df97f77104a4c7a9561a4f6c9160621). Tham khảo cách phân quyền ghi trạng thái, đọc save cũ, phục hồi dữ liệu và ghi bằng chứng bàn giao từ `references/engineering-quality.md` và `references/handoff-debug.md`. Repo có [giấy phép MIT](https://github.com/guangyuspace/codex-gamestudio-skill/blob/42838f2a4df97f77104a4c7a9561a4f6c9160621/LICENSE) và [thông báo ghi công](https://github.com/guangyuspace/codex-gamestudio-skill/blob/42838f2a4df97f77104a4c7a9561a4f6c9160621/NOTICE.md).
