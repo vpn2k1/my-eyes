@@ -24,6 +24,25 @@ flutter build web --no-web-resources-cdn
 
 Use `flutter build apk --debug` to package an Android demo and `flutter build ios` from macOS for an iOS build. Configure release signing before distribution. See [verification](docs/verification.md) for checks actually run.
 
+## Regenerate branding and splash screens
+
+The 2D illustration in `assets/branding/logo_source.png` was created with imagegen
+from the photographic eye reference. Its eyelids, blue/amber iris and dark pupil
+are part of the generated PNG artwork, not shapes drawn by code or SVG. The full
+prompt is in `assets/branding/logo.prompt.txt`. Prepared logo, icon and splash
+PNGs are saved beside the source. After preparing replacement PNGs, regenerate
+the platform resources from the project root:
+
+```sh
+dart run flutter_launcher_icons && dart run flutter_native_splash:create
+```
+
+Only `logo.png` is bundled for the app header and hero cards. Launcher/splash
+sources are consumed by `flutter_launcher_icons` and `flutter_native_splash` at
+build time. Splash backgrounds stay navy in light and dark mode; Android 12+
+uses a separate padded image to fit the system's circular mask. Native splash
+ends automatically when Flutter draws its first frame, with no artificial delay.
+
 ## Try the core flow
 
 1. Start or skip onboarding and open **Explore and learn**.
@@ -32,6 +51,6 @@ Use `flutter build apk --debug` to package an Android demo and `flutter build io
 4. Try a local JPEG or PNG. On a supported phone, open the rear camera and tap **Freeze and compare** to compare two renderings of one captured frame.
 5. Reopen Explore and select the **Learn** tab to read mode descriptions and sources.
 
-Photos are processed locally. Imports accept files up to 24 MiB and 32 MP, limit preview edges to 2048 px, and leave the source file intact. The camera comparison temporarily captures a still in the platform cache and deletes it after decoding. The app persists only the onboarding flag. Sample scenes are bundled original illustrations. See [scope and analysis](docs/scope.md), [design](docs/design.md), and the [English implementation plan](docs/PLAN.md).
+Photos are processed locally. Imports accept files up to 24 MiB and 32 MP, limit preview edges to 2048 px, and leave the source file intact. The camera comparison temporarily captures a still in the platform cache and deletes it after decoding. The app persists only the onboarding flag. Sample scenes are bundled AI-generated photorealistic images, not photographs of actual subjects. Their generation prompts are recorded in [scene sources](docs/scene-sources.md). See [scope and analysis](docs/scope.md), [design](docs/design.md), and the [English implementation plan](docs/PLAN.md).
 
 For later extensions with editable data, run `$demo-crud` from the project root. Its bundled instructions are in [.agents/skills/demo-crud/SKILL.md](.agents/skills/demo-crud/SKILL.md).

@@ -9,6 +9,7 @@ import 'content.dart';
 import 'delete_capture.dart';
 import 'media.dart';
 import 'page_column.dart';
+import 'palette.dart';
 import 'viewport.dart';
 import 'vision.dart';
 
@@ -35,12 +36,16 @@ class Simulator extends StatefulWidget {
     required this.explore,
     this.photo,
     this.scene,
+    this.mode,
   });
 
   final ui.FragmentProgram program;
   final ui.Image? photo;
   final Scene? scene;
   final VoidCallback openPhoto, explore;
+
+  /// Deficiency chosen before the camera opened, if any.
+  final VisionMode? mode;
 
   @override
   State<Simulator> createState() => _SimulatorState();
@@ -64,6 +69,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    if (widget.mode case final mode?) settings.mode = mode;
     if (_isCamera) {
       WidgetsBinding.instance.addObserver(this);
       unawaited(_syncCamera());
@@ -271,6 +277,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
     final scene = widget.scene;
     final image = widget.photo ?? _sceneImage;
     final controller = _controller;
+    if (_isCamera) return _fullScreenCamera(controller);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -365,6 +372,177 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       ),
     );
   }
+
+  /// Camera fills the screen: the point is seeing the colors around you, so
+  /// the controls sit on top of the preview instead of below a small box.
+  Widget _fullScreenCamera(CameraController? controller) => Scaffold(
+    backgroundColor: brandNavy,
+    body: ListenableBuilder(
+      listenable: settings,
+      builder: (context, _) => Stack(
+        fit: StackFit.expand,
+        children: [
+          if (controller != null)
+            VisionCameraFilter(
+              program: widget.program,
+              mode: settings.mode,
+              severity: settings.severity,
+              child: _coveringPreview(controller),
+            ),
+          if (_loading)
+            const Center(child: CircularProgressIndicator(color: brandInk))
+          else if (_error case final error?)
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 96, 20, 96),
+                child: _errorPanel(context, error),
+              ),
+            ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _scrim(
+              begin: Alignment.topCenter,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 12, 12),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: context.t('Back', 'Quay lại'),
+                        color: brandInk,
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      const SizedBox(width: 4),
+                      if (controller != null)
+                        Expanded(child: _simulatingBadge()),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (controller != null)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _scrim(
+                begin: Alignment.bottomCenter,
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: brandInk,
+                            side: const BorderSide(color: brandInk),
+                          ),
+                          onPressed: () => unawaited(_openModeSheet()),
+                          icon: const Icon(Icons.tune),
+                          label: Text(context.t('Adjust', 'Điều chỉnh')),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _capturing || _compare
+                              ? null
+                              : _openCompare,
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: Text(
+                            _capturing
+                                ? context.t('Freezing…', 'Đang chụp…')
+                                : context.t(
+                                    'Capture & compare',
+                                    'Chụp & so sánh',
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+
+  /// Fill the screen without distorting the preview's aspect ratio.
+  Widget _coveringPreview(CameraController controller) => LayoutBuilder(
+    builder: (context, constraints) => FittedBox(
+      fit: BoxFit.cover,
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: constraints.maxWidth,
+        height: constraints.maxWidth / controller.value.aspectRatio,
+        child: CameraPreview(controller),
+      ),
+    ),
+  );
+
+  Widget _scrim({required Alignment begin, required Widget child}) =>
+      DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: begin,
+            end: begin == Alignment.topCenter
+                ? Alignment.bottomCenter
+                : Alignment.topCenter,
+            colors: [brandNavy, brandNavy.withValues(alpha: 0)],
+          ),
+        ),
+        child: child,
+      );
+
+  /// Always on screen so a filtered preview is never mistaken for real color.
+  Widget _simulatingBadge() => DecoratedBox(
+    decoration: BoxDecoration(
+      color: brandNavy.withValues(alpha: .72),
+      border: Border.all(color: brandAmber),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.visibility_outlined, color: brandAmber, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.t(
+                'Simulating: ${modeName(context, settings.mode)}',
+                'Đang mô phỏng: ${modeName(context, settings.mode)}',
+              ),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: brandInk, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _openModeSheet() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (_) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        // Reuse the controls the photo and scene paths already use.
+        child: ListenableBuilder(
+          listenable: settings,
+          builder: (context, _) => ModeControls(settings: settings),
+        ),
+      ),
+    ),
+  );
 
   Widget _errorPanel(BuildContext context, String error) {
     final message = switch (error) {

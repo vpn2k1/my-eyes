@@ -11,6 +11,9 @@ import 'content.dart';
 import 'media.dart';
 import 'simulator.dart';
 import 'page_column.dart';
+import 'palette.dart';
+import 'settings.dart';
+import 'vision_picker.dart';
 import 'vision.dart';
 
 void main() {
@@ -18,14 +21,36 @@ void main() {
   runApp(const MyEyes());
 }
 
-class MyEyes extends StatelessWidget {
+class MyEyes extends StatefulWidget {
   const MyEyes({super.key, this.prefs});
   final SharedPreferencesAsync? prefs;
+
+  @override
+  State<MyEyes> createState() => _MyEyesState();
+}
+
+class _MyEyesState extends State<MyEyes> {
+  late final SharedPreferencesAsync _prefs;
+  late final AppSettings _settings;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefs = widget.prefs ?? SharedPreferencesAsync();
+    _settings = AppSettings(_prefs);
+    unawaited(_settings.restore());
+  }
+
+  @override
+  void dispose() {
+    _settings.dispose();
+    super.dispose();
+  }
 
   ThemeData _theme(Brightness brightness) => ThemeData(
     brightness: brightness,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xff2563eb),
+      seedColor: brandSeed,
       brightness: brightness,
     ),
     useMaterial3: true,
@@ -41,20 +66,26 @@ class MyEyes extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'My Eyes',
-    debugShowCheckedModeBanner: false,
-    theme: _theme(Brightness.light),
-    darkTheme: _theme(Brightness.dark),
-    supportedLocales: const [Locale('en'), Locale('vi')],
-    localizationsDelegates: GlobalMaterialLocalizations.delegates,
-    home: Home(prefs: prefs ?? SharedPreferencesAsync()),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _settings,
+    builder: (context, _) => MaterialApp(
+      title: 'My Eyes',
+      debugShowCheckedModeBanner: false,
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
+      themeMode: _settings.themeMode,
+      locale: _settings.locale,
+      supportedLocales: const [Locale('en'), Locale('vi')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: Home(prefs: _prefs, settings: _settings),
+    ),
   );
 }
 
 class Home extends StatefulWidget {
-  const Home({super.key, required this.prefs});
+  const Home({super.key, required this.prefs, required this.settings});
   final SharedPreferencesAsync prefs;
+  final AppSettings settings;
 
   @override
   State<Home> createState() => _HomeState();
@@ -148,7 +179,11 @@ class _HomeState extends State<Home> {
     }
   }
 
-  Future<void> _openSimulator({ui.Image? image, Scene? scene}) async {
+  Future<void> _openSimulator({
+    ui.Image? image,
+    Scene? scene,
+    VisionMode? mode,
+  }) async {
     final ui.FragmentProgram program;
     try {
       program = await _program;
@@ -169,6 +204,7 @@ class _HomeState extends State<Home> {
         program: program,
         photo: image,
         scene: scene,
+        mode: mode,
         openPhoto: () => unawaited(_openPhoto()),
         explore: _explore,
       ),
@@ -177,6 +213,14 @@ class _HomeState extends State<Home> {
     // Keep caller-owned images usable through the route exit animation.
     await route.completed;
   }
+
+  void _chooseType() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => VisionPicker(
+        openCamera: (mode) => unawaited(_openSimulator(mode: mode)),
+      ),
+    ),
+  );
 
   void _explore() => Navigator.of(context).push<void>(
     MaterialPageRoute(
@@ -204,9 +248,30 @@ class _HomeState extends State<Home> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const Icon(Icons.visibility_outlined),
+        leading: Padding(
+          padding: const EdgeInsets.all(10),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xff141e35),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(5),
+              child: Image.asset(
+                'assets/branding/logo.png',
+                excludeFromSemantics: true,
+              ),
+            ),
+          ),
+        ),
         title: const Text('My Eyes'),
         actions: [
+          IconButton(
+            tooltip: context.t('Settings', 'Cài đặt'),
+            onPressed: () =>
+                unawaited(showSettingsSheet(context, widget.settings)),
+            icon: const Icon(Icons.settings_outlined),
+          ),
           IconButton(
             tooltip: context.t('About My Eyes', 'Giới thiệu My Eyes'),
             onPressed: _guidance,
@@ -236,10 +301,10 @@ class _HomeState extends State<Home> {
             icon: Icons.videocam_outlined,
             title: context.t('Open camera', 'Mở camera'),
             description: context.t(
-              'See the colors around you',
-              'Quan sát màu sắc xung quanh',
+              'Choose a type, then see the colors around you',
+              'Chọn loại sắc giác, rồi quan sát màu sắc xung quanh',
             ),
-            onTap: _busy ? null : _openSimulator,
+            onTap: _busy ? null : _chooseType,
           ),
           _Entry(
             icon: Icons.photo_outlined,
@@ -254,8 +319,8 @@ class _HomeState extends State<Home> {
             icon: Icons.auto_stories_outlined,
             title: context.t('Explore and learn', 'Khám phá và tìm hiểu'),
             description: context.t(
-              'Try six illustrated scenes offline',
-              'Thử sáu tình huống minh họa ngoại tuyến',
+              'Explore six realistic scenes offline',
+              'Khám phá sáu ảnh mẫu chân thực ngoại tuyến',
             ),
             onTap: _busy ? null : _explore,
           ),
@@ -272,14 +337,13 @@ class HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ink = Color(0xfff5f7fd);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xff141e35), Color(0xff253c62)],
+          colors: [brandNavy, brandNavyLift],
         ),
       ),
       child: Padding(
@@ -287,16 +351,18 @@ class HeroCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.visibility_outlined,
-              color: Color(0xffabc8ff),
-              size: 32,
+            Image.asset(
+              'assets/branding/logo.png',
+              width: 64,
+              height: 36,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
             ),
             const SizedBox(height: 22),
             Text(
               title,
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                color: ink,
+                color: brandInk,
                 fontWeight: FontWeight.w700,
                 height: 1.12,
               ),
@@ -306,7 +372,7 @@ class HeroCard extends StatelessWidget {
               body,
               style: Theme.of(
                 context,
-              ).textTheme.bodyLarge?.copyWith(color: ink),
+              ).textTheme.bodyLarge?.copyWith(color: brandInk),
             ),
           ],
         ),

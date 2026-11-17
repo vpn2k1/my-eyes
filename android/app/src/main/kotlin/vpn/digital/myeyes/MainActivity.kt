@@ -1,4 +1,4 @@
-package com.myeyes.my_eyes
+package vpn.digital.myeyes
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -2,19 +2,29 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_eyes/main.dart';
 import 'package:my_eyes/simulator.dart';
+import 'package:my_eyes/eye_test.dart';
 import 'package:my_eyes/vision.dart';
+import 'package:my_eyes/vision_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MemoryPreferences implements SharedPreferencesAsync {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
-  final _values = <String, bool>{};
-  bool get completed => _values['onboarding_completed'] ?? false;
+  final _values = <String, Object>{};
+  bool get completed => _values['onboarding_completed'] == true;
+  String? operator [](String key) => _values[key] as String?;
   @override
   Future<bool?> getBool(String key) async => completed;
   @override
   Future<void> setBool(String key, bool value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<String?> getString(String key) async => _values[key] as String?;
+  @override
+  Future<void> setString(String key, String value) async {
     _values[key] = value;
   }
 }
@@ -64,7 +74,7 @@ void main() {
       findsOneWidget,
     );
     tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
-    await tester.tap(find.text('Protan'));
+    await tester.tap(find.text('Trouble with red'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Compare with original'));
     await tester.tap(find.text('Compare with original'));
@@ -86,7 +96,7 @@ void main() {
       tester
           .widget<ChoiceChip>(
             find.ancestor(
-              of: find.text('Protan'),
+              of: find.text('Trouble with red'),
               matching: find.byType(ChoiceChip),
             ),
           )
@@ -121,6 +131,41 @@ void main() {
     },
   );
 
+  testWidgets('settings choose language and theme, and persist', (
+    tester,
+  ) async {
+    final prefs = MemoryPreferences();
+    await prefs.setBool('onboarding_completed', true);
+    await tester.binding.setSurfaceSize(const Size(390, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MyEyes(prefs: prefs));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tiếng Việt'));
+    await tester.pumpAndSettle();
+    expect(prefs['language'], 'vi');
+    await tester.tap(find.text('Tối'));
+    await tester.pumpAndSettle();
+    expect(prefs['theme_mode'], 'dark');
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+    await tester.tapAt(const Offset(195, 20));
+    await tester.pumpAndSettle();
+    expect(find.text('Mở camera'), findsOneWidget);
+
+    // The stored choices apply again on the next launch.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(MyEyes(prefs: prefs));
+    await tester.pumpAndSettle();
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+    expect(app.locale, const Locale('vi'));
+    expect(find.text('Mở camera'), findsOneWidget);
+  });
+
   testWidgets('fixed modes hide severity and recolor modes retain it', (
     tester,
   ) async {
@@ -137,12 +182,75 @@ void main() {
     );
     tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
     await tester.pump();
-    await tester.tap(find.text('Grayscale'));
+    await tester.tap(find.text('No color at all'));
     await tester.pump();
     expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('Protan'));
+    await tester.tap(find.text('Trouble with red'));
     await tester.pump();
     expect(settings.mode, VisionMode.protan);
     expect(tester.widget<Slider>(find.byType(Slider)).value, .55);
+  });
+
+  testWidgets('camera entry picks a type by group before opening', (
+    tester,
+  ) async {
+    final prefs = MemoryPreferences();
+    await prefs.setBool('onboarding_completed', true);
+    await tester.binding.setSurfaceSize(const Size(390, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MyEyes(prefs: prefs));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open camera'));
+    await tester.pumpAndSettle();
+
+    // Red-green is a group heading, not a selectable fourth type.
+    expect(find.byType(VisionPicker), findsOneWidget);
+    expect(find.text('RED – GREEN DEFICIENCY'), findsOneWidget);
+    expect(find.text('Trouble with green'), findsOneWidget);
+    expect(find.text('Trouble with red'), findsOneWidget);
+    expect(find.text('Check your eyes'), findsOneWidget);
+    expect(find.textContaining('Deutan (deuteranopia)'), findsOneWidget);
+  });
+
+  testWidgets('the screening runs end to end and suggests a type', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    VisionMode? popped;
+    var popCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              popped = await Navigator.of(context).push<VisionMode?>(
+                MaterialPageRoute(builder: (_) => const EyeTest()),
+              );
+              popCount++;
+            },
+            child: const Text('go'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+
+    // Skip every question: "not sure" counts as a miss on all three axes.
+    for (var i = 0; i < questionCount; i++) {
+      expect(find.textContaining('of $questionCount'), findsOneWidget);
+      await tester.tap(find.text('Not sure / Skip'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Result'), findsOneWidget);
+    expect(find.textContaining('not a medical diagnosis'), findsOneWidget);
+    expect(find.textContaining('both groups'), findsOneWidget);
+
+    await tester.tap(find.text('View camera as this type'));
+    await tester.pumpAndSettle();
+    expect(popCount, 1);
+    expect(popped, isNotNull);
+    expect(tester.takeException(), isNull);
   });
 }

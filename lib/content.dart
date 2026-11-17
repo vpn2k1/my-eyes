@@ -13,10 +13,22 @@ extension Copy on BuildContext {
 
 String modeName(BuildContext context, VisionMode mode) => switch (mode) {
   VisionMode.normal => context.t('Typical vision', 'Thị giác thông thường'),
-  VisionMode.protan => 'Protan',
-  VisionMode.deutan => 'Deutan',
-  VisionMode.tritan => 'Tritan',
-  VisionMode.grayscale => context.t('Grayscale', 'Đơn sắc'),
+  VisionMode.protan => context.t('Trouble with red', 'Khó với màu đỏ'),
+  VisionMode.deutan => context.t('Trouble with green', 'Khó với màu xanh lá'),
+  VisionMode.tritan => context.t(
+    'Trouble with blue and yellow',
+    'Khó với xanh dương – vàng',
+  ),
+  VisionMode.grayscale => context.t('No color at all', 'Không thấy màu'),
+};
+
+/// Clinical name, shown as a secondary line so the terminology is still there.
+String? modeClinical(VisionMode mode) => switch (mode) {
+  VisionMode.normal => null,
+  VisionMode.protan => 'Protan (protanopia)',
+  VisionMode.deutan => 'Deutan (deuteranopia)',
+  VisionMode.tritan => 'Tritan (tritanopia)',
+  VisionMode.grayscale => 'Achromatopsia',
 };
 
 LocalText modeNote(VisionMode mode) => switch (mode) {
@@ -45,6 +57,11 @@ LocalText modeNote(VisionMode mode) => switch (mode) {
 final simulationNotice = words(
   'This educational simulation is an approximation. It cannot diagnose color vision or reproduce anyone’s individual experience.',
   'Đây là mô phỏng gần đúng dùng cho giáo dục. Ứng dụng không chẩn đoán sắc giác hay tái hiện trải nghiệm của từng người.',
+);
+
+final screeningNotice = words(
+  'This is an indicative screening, not a medical diagnosis. Screen colors and room lighting affect the result. See an eye care professional for a proper test.',
+  'Đây là sàng lọc tham khảo, không phải chẩn đoán y tế. Màu màn hình và ánh sáng phòng đều ảnh hưởng kết quả. Hãy gặp bác sĩ mắt để kiểm tra chính thức.',
 );
 
 class Scene {
