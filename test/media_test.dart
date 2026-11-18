@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:my_eyes/media.dart';
+import 'package:my_eyes/services/media.dart';
 
 void main() {
   test('validates formats and decodes PNG and JPEG', () {

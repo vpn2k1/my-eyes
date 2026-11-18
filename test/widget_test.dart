@@ -1,10 +1,15 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_eyes/main.dart';
-import 'package:my_eyes/simulator.dart';
-import 'package:my_eyes/eye_test.dart';
-import 'package:my_eyes/vision.dart';
-import 'package:my_eyes/vision_picker.dart';
+import 'package:my_eyes/state/simulation_settings.dart';
+import 'package:my_eyes/widgets/mode_controls.dart';
+import 'package:my_eyes/screens/eye_test_screen.dart';
+import 'package:my_eyes/models/plate.dart';
+import 'package:my_eyes/vision/vision_copy.dart';
+import 'package:my_eyes/vision/filters.dart';
+import 'package:my_eyes/widgets/vision_viewport.dart';
+import 'package:my_eyes/vision/vision.dart';
+import 'package:my_eyes/screens/vision_picker_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MemoryPreferences implements SharedPreferencesAsync {
@@ -73,8 +78,9 @@ void main() {
       find.bySemanticsLabel('Three stacked lights above a street'),
       findsOneWidget,
     );
+    await tester.tap(find.text('Protanopia'));
+    await tester.pumpAndSettle();
     tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
-    await tester.tap(find.text('Red color blindness'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Compare with original'));
     await tester.tap(find.text('Compare with original'));
@@ -96,7 +102,7 @@ void main() {
       tester
           .widget<ChoiceChip>(
             find.ancestor(
-              of: find.text('Red color blindness'),
+              of: find.text('Protanopia'),
               matching: find.byType(ChoiceChip),
             ),
           )
@@ -166,29 +172,45 @@ void main() {
     expect(find.text('Mở camera'), findsOneWidget);
   });
 
-  testWidgets('fixed modes hide severity and recolor modes retain it', (
+  testWidgets('each entry seeds its own strength and conditions have none', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final settings = SimulationSettings();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ListenableBuilder(
-            listenable: settings,
-            builder: (context, _) => ModeControls(settings: settings),
+          body: SingleChildScrollView(
+            child: ListenableBuilder(
+              listenable: settings,
+              builder: (context, _) => ModeControls(settings: settings),
+            ),
           ),
         ),
       ),
     );
-    tester.widget<Slider>(find.byType(Slider)).onChanged!(.55);
-    await tester.pump();
-    await tester.tap(find.text('Total color blindness'));
-    await tester.pump();
-    expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('Red color blindness'));
+
+    // The partial form starts half strength, the complete form at full.
+    await tester.tap(find.text('Protanomaly'));
     await tester.pump();
     expect(settings.mode, VisionMode.protan);
-    expect(tester.widget<Slider>(find.byType(Slider)).value, .55);
+    expect(tester.widget<Slider>(find.byType(Slider)).value, .5);
+    await tester.tap(find.text('Protanopia'));
+    await tester.pump();
+    expect(tester.widget<Slider>(find.byType(Slider)).value, 1);
+
+    // The no-color axis is adjustable too, so achromatomaly can exist.
+    await tester.tap(find.text('Achromatomaly'));
+    await tester.pump();
+    expect(settings.mode, VisionMode.grayscale);
+    expect(tester.widget<Slider>(find.byType(Slider)).value, .6);
+
+    // Field and clarity loss is not a strength the slider can move.
+    await tester.tap(find.text('Glaucoma'));
+    await tester.pump();
+    expect(settings.mode, VisionMode.normal);
+    expect(find.byType(Slider), findsNothing);
   });
 
   testWidgets('camera entry picks a type by group before opening', (
@@ -203,13 +225,19 @@ void main() {
     await tester.tap(find.text('Open camera'));
     await tester.pumpAndSettle();
 
-    // Red-green is a group heading, not a selectable fourth type.
+    // Red-green is a group heading, not a selectable type of its own; the
+    // complete and partial forms under it are separate entries.
     expect(find.byType(VisionPicker), findsOneWidget);
     expect(find.text('RED – GREEN DEFICIENCY'), findsOneWidget);
-    expect(find.text('Green color blindness'), findsOneWidget);
-    expect(find.text('Red color blindness'), findsOneWidget);
+    expect(find.text('Deuteranopia'), findsOneWidget);
+    expect(find.text('Deuteranomaly'), findsOneWidget);
+    expect(find.text('Protanopia'), findsOneWidget);
     expect(find.text('Check your eyes'), findsOneWidget);
-    expect(find.textContaining('Deuteranopia · deuteranomaly'), findsOneWidget);
+
+    // Correction and the non-color conditions are their own groups.
+    await tester.scrollUntilVisible(find.text('Glaucoma'), 200);
+    expect(find.text('HELP TELL COLORS APART'), findsOneWidget);
+    expect(find.text('OTHER EYE CONDITIONS'), findsOneWidget);
   });
 
   testWidgets('answering every question right reads as typical', (
@@ -252,14 +280,14 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    VisionMode? popped;
+    VisionFilter? popped;
     var popCount = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              popped = await Navigator.of(context).push<VisionMode?>(
+              popped = await Navigator.of(context).push<VisionFilter?>(
                 MaterialPageRoute(builder: (_) => const EyeTest()),
               );
               popCount++;
@@ -293,5 +321,63 @@ void main() {
     expect(popCount, 1);
     expect(popped, isNotNull);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('spatial loss is composited only when a filter asks for it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const VisionEffectOverlay(child: SizedBox()));
+    expect(find.byType(Stack), findsNothing);
+    expect(find.byType(ImageFiltered), findsNothing);
+
+    // Field loss needs a layer over the frame but no blur.
+    await tester.pumpWidget(
+      const VisionEffectOverlay(
+        effect: VisionEffect(vignette: .8),
+        child: SizedBox(),
+      ),
+    );
+    expect(find.byType(Stack), findsOneWidget);
+    expect(find.byType(ImageFiltered), findsNothing);
+
+    await tester.pumpWidget(
+      const VisionEffectOverlay(
+        effect: VisionEffect(blur: 3, scrim: Color(0x33ffffff)),
+        child: SizedBox(),
+      ),
+    );
+    expect(find.byType(ImageFiltered), findsOneWidget);
+    expect(find.byType(Stack), findsOneWidget);
+  });
+
+  testWidgets('every catalog entry has copy of its own', (tester) async {
+    late BuildContext captured;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            captured = context;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    expect(
+      allFilters.map((filter) => filter.id).toSet(),
+      hasLength(allFilters.length),
+    );
+    for (final filter in allFilters) {
+      // A mistyped id falls back to the generic per-mode name, which would
+      // leave two entries in a group sharing one label.
+      expect(
+        filterName(captured, filter),
+        isNot(modeName(captured, filter.mode)),
+        reason: 'no name for ${filter.id}',
+      );
+    }
+    expect(
+      allFilters.map((filter) => filterName(captured, filter)).toSet(),
+      hasLength(allFilters.length),
+    );
   });
 }

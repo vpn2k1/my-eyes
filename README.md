@@ -54,3 +54,11 @@ ends automatically when Flutter draws its first frame, with no artificial delay.
 Photos are processed locally. Imports accept files up to 24 MiB and 32 MP, limit preview edges to 2048 px, and leave the source file intact. The camera comparison temporarily captures a still in the platform cache and deletes it after decoding. The app persists only the onboarding flag. Sample scenes are bundled AI-generated photorealistic images, not photographs of actual subjects. Their generation prompts are recorded in [scene sources](docs/scene-sources.md). See [scope and analysis](docs/scope.md), [design](docs/design.md), and the [English implementation plan](docs/PLAN.md).
 
 For later extensions with editable data, run `$demo-crud` from the project root. Its bundled instructions are in [.agents/skills/demo-crud/SKILL.md](.agents/skills/demo-crud/SKILL.md).
+
+## UI icon artwork
+
+`assets/icons/` contains 22 original, transparent 144 × 144 WebP icons. The flat
+blue/amber artwork is shared through `lib/app_icon.dart`; navigation symbols
+inherit the current icon tint for dark surfaces, and button labels/tooltips
+provide accessibility text. No additional runtime package is required.
+Regenerate the artwork with `python3.11 tools/generate_icons.py` (requires Pillow).

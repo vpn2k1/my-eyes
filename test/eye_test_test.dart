@@ -4,8 +4,10 @@ import 'dart:typed_data' show ByteData;
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_eyes/eye_test.dart';
-import 'package:my_eyes/vision.dart';
+import 'package:my_eyes/models/eye_test_score.dart';
+import 'package:my_eyes/models/plate.dart';
+import 'package:my_eyes/vision/vision.dart';
+import 'package:my_eyes/widgets/plate_painter.dart';
 
 List<int> _rgba(Color color) => [
   (color.r * 255).round(),

@@ -2,40 +2,44 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
-import 'content.dart';
-import 'eye_test.dart';
-import 'page_column.dart';
-import 'palette.dart';
-import 'vision.dart';
+import '../widgets/app_icon.dart';
+import '../i18n/copy.dart';
+import '../vision/vision_copy.dart';
+import '../models/plate.dart';
+import 'eye_test_screen.dart';
+import '../vision/filters.dart';
+import '../widgets/page_column.dart';
+import '../theme/palette.dart';
 
-/// Picks which deficiency to simulate before the camera opens, grouped by
+/// Picks which filter to view through before the camera opens, grouped by
 /// clinical category so "red–green" reads as the group name it actually is
-/// rather than a third type of its own.
+/// rather than a type of its own.
 class VisionPicker extends StatefulWidget {
   const VisionPicker({super.key, required this.openCamera});
 
-  /// Opens the full-screen camera simulating [mode].
-  final void Function(VisionMode mode) openCamera;
+  /// Opens the full-screen camera applying [filter].
+  final void Function(VisionFilter filter) openCamera;
 
   @override
   State<VisionPicker> createState() => _VisionPickerState();
 }
 
 class _VisionPickerState extends State<VisionPicker> {
-  VisionMode? _selected;
+  VisionFilter? _selected;
 
   Future<void> _runTest() async {
-    final suggested = await Navigator.of(
+    final filter = await Navigator.of(
       context,
-    ).push<VisionMode?>(MaterialPageRoute(builder: (_) => const EyeTest()));
-    if (!mounted || suggested == null) return;
-    setState(() => _selected = suggested);
+    ).push<VisionFilter?>(MaterialPageRoute(builder: (_) => const EyeTest()));
+    if (!mounted || filter == null) return;
+    setState(() => _selected = filter);
+    final name = filterName(context, filter);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           context.t(
-            'Selected ${modeName(context, suggested)}. This is a screening, not a diagnosis.',
-            'Đã chọn "${modeName(context, suggested)}". Đây là sàng lọc, không phải chẩn đoán.',
+            'Selected $name. This is a screening, not a diagnosis.',
+            'Đã chọn "$name". Đây là sàng lọc, không phải chẩn đoán.',
           ),
         ),
       ),
@@ -56,41 +60,32 @@ class _VisionPickerState extends State<VisionPicker> {
           ),
         ),
         const SizedBox(height: 20),
-        _Heading(
-          title: context.t('RED – GREEN DEFICIENCY', 'RỐI LOẠN ĐỎ – XANH LÁ'),
-          note: context.t(
-            'The most common form, about 8% of men',
-            'Phổ biến nhất, khoảng 8% nam giới',
+        for (final category in FilterCategory.values) ...[
+          _CategoryHeading(
+            title: context.copy(categoryTitle(category)),
+            note: switch (categoryNote(category)) {
+              final note? => context.copy(note),
+              _ => null,
+            },
           ),
-        ),
-        _ModeRow(
-          mode: VisionMode.deutan,
-          selected: _selected,
-          onTap: widget.openCamera,
-        ),
-        _ModeRow(
-          mode: VisionMode.protan,
-          selected: _selected,
-          onTap: widget.openCamera,
-        ),
-        _Heading(
-          title: context.t(
-            'BLUE – YELLOW DEFICIENCY',
-            'RỐI LOẠN XANH DƯƠNG – VÀNG',
-          ),
-          note: context.t('Rare', 'Rất hiếm gặp'),
-        ),
-        _ModeRow(
-          mode: VisionMode.tritan,
-          selected: _selected,
-          onTap: widget.openCamera,
-        ),
-        _Heading(title: context.t('NO COLOR VISION', 'KHÔNG THẤY MÀU')),
-        _ModeRow(
-          mode: VisionMode.grayscale,
-          selected: _selected,
-          onTap: widget.openCamera,
-        ),
+          for (final group in filterCatalog.entries.where(
+            (group) => categoryOf(group.key) == category,
+          )) ...[
+            _Heading(
+              title: context.copy(groupTitle(group.key)),
+              note: switch (groupNote(group.key)) {
+                final note? => context.copy(note),
+                _ => null,
+              },
+            ),
+            for (final filter in group.value)
+              _FilterRow(
+                filter: filter,
+                selected: _selected,
+                onTap: widget.openCamera,
+              ),
+          ],
+        ],
         const SizedBox(height: 12),
         const Divider(),
         const SizedBox(height: 12),
@@ -105,7 +100,7 @@ class _VisionPickerState extends State<VisionPicker> {
               horizontal: 16,
               vertical: 6,
             ),
-            leading: const Icon(Icons.search, color: brandAmber),
+            leading: const AppIcon(AppIcons.search, color: brandAmber),
             title: Text(context.t('Check your eyes', 'Kiểm tra mắt bạn')),
             subtitle: Text(
               context.t(
@@ -113,12 +108,36 @@ class _VisionPickerState extends State<VisionPicker> {
                 '$questionCount câu, đủ nhóm đỏ – xanh lá và xanh dương – vàng',
               ),
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const AppIcon(AppIcons.chevron),
             onTap: () => unawaited(_runTest()),
           ),
         ),
         const SizedBox(height: 16),
         Text(context.copy(simulationNotice)),
+      ],
+    ),
+  );
+}
+
+class _CategoryHeading extends StatelessWidget {
+  const _CategoryHeading({required this.title, this.note});
+  final String title;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 20, bottom: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(),
+        const SizedBox(height: 12),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        if (note case final text?)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+          ),
       ],
     ),
   );
@@ -149,19 +168,19 @@ class _Heading extends StatelessWidget {
   );
 }
 
-class _ModeRow extends StatelessWidget {
-  const _ModeRow({
-    required this.mode,
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.filter,
     required this.selected,
     required this.onTap,
   });
-  final VisionMode mode;
-  final VisionMode? selected;
-  final void Function(VisionMode mode) onTap;
+  final VisionFilter filter;
+  final VisionFilter? selected;
+  final void Function(VisionFilter filter) onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = mode == selected;
+    final isSelected = filter == selected;
     final scheme = Theme.of(context).colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -176,14 +195,12 @@ class _ModeRow extends StatelessWidget {
               ? scheme.onPrimary
               : scheme.onPrimaryContainer,
           // Pair the selected color with a check icon, never color alone.
-          child: Icon(isSelected ? Icons.check : Icons.remove_red_eye_outlined),
+          child: AppIcon(isSelected ? AppIcons.check : AppIcons.eye),
         ),
-        title: Text(modeName(context, mode)),
-        subtitle: Text(
-          [?modeClinical(context, mode), context.copy(modeNote(mode))].join(' · '),
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => onTap(mode),
+        title: Text(filterName(context, filter)),
+        subtitle: Text(context.copy(filterNote(filter))),
+        trailing: const AppIcon(AppIcons.chevron),
+        onTap: () => onTap(filter),
       ),
     );
   }

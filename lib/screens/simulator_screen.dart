@@ -5,28 +5,20 @@ import 'package:app_settings/app_settings.dart';
 import 'package:camera/camera.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'content.dart';
-import 'delete_capture.dart';
-import 'media.dart';
-import 'page_column.dart';
-import 'palette.dart';
-import 'viewport.dart';
-import 'vision.dart';
-
-class SimulationSettings extends ChangeNotifier {
-  VisionMode mode = VisionMode.deutan;
-  double severity = 1;
-
-  void select(VisionMode value) {
-    mode = value;
-    notifyListeners();
-  }
-
-  void setSeverity(double value) {
-    severity = value;
-    notifyListeners();
-  }
-}
+import '../i18n/copy.dart';
+import '../models/scene.dart';
+import '../services/delete_capture.dart';
+import '../services/media.dart';
+import '../state/simulation_settings.dart';
+import '../theme/palette.dart';
+import '../vision/filters.dart';
+import '../vision/vision_copy.dart';
+import '../widgets/app_icon.dart';
+import '../widgets/image_frame.dart';
+import '../widgets/mode_controls.dart';
+import '../widgets/page_column.dart';
+import '../widgets/vision_viewport.dart';
+import 'comparison_screen.dart';
 
 class Simulator extends StatefulWidget {
   const Simulator({
@@ -36,7 +28,7 @@ class Simulator extends StatefulWidget {
     required this.explore,
     this.photo,
     this.scene,
-    this.mode,
+    this.filter,
   });
 
   final ui.FragmentProgram program;
@@ -44,8 +36,8 @@ class Simulator extends StatefulWidget {
   final Scene? scene;
   final VoidCallback openPhoto, explore;
 
-  /// Deficiency chosen before the camera opened, if any.
-  final VisionMode? mode;
+  /// Filter chosen before the camera opened, if any.
+  final VisionFilter? filter;
 
   @override
   State<Simulator> createState() => _SimulatorState();
@@ -72,7 +64,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    if (widget.mode case final mode?) settings.mode = mode;
+    if (widget.filter case final filter?) settings.select(filter);
     if (_isCamera) {
       WidgetsBinding.instance.addObserver(this);
       unawaited(_syncCamera());
@@ -146,12 +138,16 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       }
       final devices = await availableCameras();
       if (!_cameraWanted) return;
-      debugPrint('MYEYES open lens=$_lens devices=${devices.map((c) => c.lensDirection).toList()}');
+      debugPrint(
+        'MYEYES open lens=$_lens devices=${devices.map((c) => c.lensDirection).toList()}',
+      );
       _hasFront = devices.any(
         (camera) => camera.lensDirection == CameraLensDirection.front,
       );
       final lens =
-          devices.where((camera) => camera.lensDirection == _lens).firstOrNull ??
+          devices
+              .where((camera) => camera.lensDirection == _lens)
+              .firstOrNull ??
           devices.firstOrNull;
       if (lens == null) {
         throw CameraException('NoCamera', 'No camera available.');
@@ -354,7 +350,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                     ImageFrame(
                       image: image,
                       program: widget.program,
-                      mode: settings.mode,
+                      filter: settings.filter,
                       severity: settings.severity,
                       label: scene == null
                           ? context.t('Simulation preview', 'Ảnh mô phỏng')
@@ -371,7 +367,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(20),
                           child: VisionCameraFilter(
                             program: widget.program,
-                            mode: settings.mode,
+                            filter: settings.filter,
                             severity: settings.severity,
                             child: CameraPreview(controller),
                           ),
@@ -393,7 +389,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                       _compare
                   ? null
                   : _openCompare,
-              icon: const Icon(Icons.compare_outlined),
+              icon: const AppIcon(AppIcons.compare),
               label: Text(
                 _capturing
                     ? context.t('Freezing frame…', 'Đang chụp khung hình…')
@@ -410,7 +406,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                 padding: const EdgeInsets.only(top: 16),
                 child: Card(
                   child: ListTile(
-                    leading: const Icon(Icons.lightbulb_outline),
+                    leading: const AppIcon(AppIcons.bulb),
                     title: Text(context.copy(scene.barrier)),
                     subtitle: Text(context.copy(scene.tip)),
                   ),
@@ -434,7 +430,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
           if (controller != null)
             VisionCameraFilter(
               program: widget.program,
-              mode: settings.mode,
+              filter: settings.filter,
               severity: settings.severity,
               child: _coveringPreview(controller),
             ),
@@ -463,7 +459,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                         tooltip: context.t('Back', 'Quay lại'),
                         color: brandInk,
                         onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back),
+                        icon: const AppIcon(AppIcons.back),
                       ),
                       const SizedBox(width: 4),
                       if (controller != null) ...[
@@ -473,8 +469,8 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                             tooltip: context.t('Flash', 'Đèn flash'),
                             color: _torch ? brandAmber : brandInk,
                             onPressed: () => unawaited(_toggleTorch()),
-                            icon: Icon(
-                              _torch ? Icons.flash_on : Icons.flash_off,
+                            icon: AppIcon(
+                              _torch ? AppIcons.flashOn : AppIcons.flashOff,
                             ),
                           ),
                         if (_hasFront)
@@ -482,7 +478,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                             tooltip: context.t('Switch camera', 'Đổi camera'),
                             color: brandInk,
                             onPressed: () => unawaited(_flipLens()),
-                            icon: const Icon(Icons.cameraswitch_outlined),
+                            icon: const AppIcon(AppIcons.switchCamera),
                           ),
                       ],
                     ],
@@ -511,14 +507,14 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                             side: const BorderSide(color: brandInk),
                           ),
                           onPressed: () => unawaited(_openModeSheet()),
-                          icon: const Icon(Icons.tune),
+                          icon: const AppIcon(AppIcons.adjust),
                           label: Text(context.t('Adjust', 'Điều chỉnh')),
                         ),
                         FilledButton.icon(
                           onPressed: _capturing || _compare
                               ? null
                               : _openCompare,
-                          icon: const Icon(Icons.camera_alt_outlined),
+                          icon: const AppIcon(AppIcons.camera),
                           label: Text(
                             _capturing
                                 ? context.t('Freezing…', 'Đang chụp…')
@@ -586,13 +582,13 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.visibility_outlined, color: brandAmber, size: 18),
+          const AppIcon(AppIcons.eye, color: brandAmber, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               context.t(
-                'Simulating: ${modeName(context, settings.mode)}',
-                'Đang mô phỏng: ${modeName(context, settings.mode)}',
+                'Simulating: ${filterName(context, settings.filter)}',
+                'Đang mô phỏng: ${filterName(context, settings.filter)}',
               ),
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: brandInk, fontSize: 13),
@@ -692,300 +688,6 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
           ],
         ),
       ),
-    );
-  }
-}
-
-class ModeControls extends StatelessWidget {
-  const ModeControls({super.key, required this.settings});
-  final SimulationSettings settings;
-
-  @override
-  Widget build(BuildContext context) {
-    final severity = (settings.severity * 100).round();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.t('Vision mode', 'Chế độ sắc giác'),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final mode in VisionMode.values)
-              ChoiceChip(
-                materialTapTargetSize: MaterialTapTargetSize.padded,
-                label: Text(modeName(context, mode)),
-                selected: mode == settings.mode,
-                onSelected: (_) => settings.select(mode),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(context.copy(modeNote(settings.mode))),
-        const SizedBox(height: 12),
-        if (settings.mode.hasSeverity) ...[
-          Text(
-            context.t(
-              'Simulation strength · $severity%',
-              'Mức độ mô phỏng · $severity%',
-            ),
-          ),
-          Semantics(
-            label: context.t('Simulation strength', 'Mức độ mô phỏng'),
-            child: Slider(
-              value: settings.severity,
-              divisions: 100,
-              label: '$severity%',
-              semanticFormatterCallback: (value) => '${(value * 100).round()}%',
-              onChanged: settings.setSeverity,
-            ),
-          ),
-        ] else
-          Text(
-            context.t(
-              'This mode has a fixed strength.',
-              'Chế độ này có mức độ cố định.',
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class ImageFrame extends StatelessWidget {
-  const ImageFrame({
-    super.key,
-    required this.image,
-    required this.program,
-    required this.mode,
-    required this.severity,
-    required this.label,
-    this.split,
-  });
-
-  final ui.Image image;
-  final ui.FragmentProgram program;
-  final VisionMode mode;
-  final double severity;
-  final String label;
-  final double? split;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 430),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: VisionImage(
-          image: image,
-          program: program,
-          mode: mode,
-          severity: severity,
-          label: label,
-          split: split,
-        ),
-      ),
-    ),
-  );
-}
-
-class Comparison extends StatefulWidget {
-  const Comparison({
-    super.key,
-    required this.image,
-    required this.program,
-    required this.settings,
-    this.description,
-  });
-  final ui.Image image;
-  final ui.FragmentProgram program;
-  final SimulationSettings settings;
-  final LocalText? description;
-
-  @override
-  State<Comparison> createState() => _ComparisonState();
-}
-
-class _ComparisonState extends State<Comparison> {
-  bool _sideBySide = false;
-  double _split = .5;
-
-  ImageFrame frame(String label, VisionMode mode, [double? split]) =>
-      ImageFrame(
-        image: widget.image,
-        program: widget.program,
-        mode: mode,
-        severity: widget.settings.severity,
-        label: widget.description == null
-            ? label
-            : '$label. ${context.copy(widget.description!)}',
-        split: split,
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    final original = context.t('Original', 'Ảnh gốc');
-    final simulated = context.t('Simulated', 'Mô phỏng');
-    return Scaffold(
-      appBar: AppBar(title: Text(context.t('Compare', 'So sánh'))),
-      body: ListenableBuilder(
-        listenable: widget.settings,
-        builder: (context, _) => PageColumn(
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ChoiceChip(
-                  label: Text(context.t('Split slider', 'Thanh chia ảnh')),
-                  selected: !_sideBySide,
-                  onSelected: (_) => setState(() => _sideBySide = false),
-                ),
-                ChoiceChip(
-                  label: Text(context.t('Side by side', 'Đặt cạnh nhau')),
-                  selected: _sideBySide,
-                  onSelected: (_) => setState(() => _sideBySide = true),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(child: Text(original)),
-                Flexible(child: Text(simulated, textAlign: TextAlign.end)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (_sideBySide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: frame(original, VisionMode.normal)),
-                  const SizedBox(width: 8),
-                  Expanded(child: frame(simulated, widget.settings.mode)),
-                ],
-              )
-            else ...[
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  // Match ImageFrame's centered width, including portrait images.
-                  final width = (430 * widget.image.width / widget.image.height)
-                      .clamp(0.0, constraints.maxWidth);
-                  void update(DragUpdateDetails details) => setState(() {
-                    _split = (details.localPosition.dx / width).clamp(0.0, 1.0);
-                  });
-                  return Center(
-                    child: SizedBox(
-                      width: width,
-                      child: GestureDetector(
-                        onHorizontalDragUpdate: update,
-                        excludeFromSemantics: true,
-                        child: frame(
-                          '$original / $simulated',
-                          widget.settings.mode,
-                          _split,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              Semantics(
-                label: context.t(
-                  'Original image shown',
-                  'Phần ảnh gốc hiển thị',
-                ),
-                child: Slider(
-                  value: _split,
-                  divisions: 100,
-                  label: '${(_split * 100).round()}%',
-                  semanticFormatterCallback: (value) =>
-                      '${(value * 100).round()}%',
-                  onChanged: (value) => setState(() => _split = value),
-                ),
-              ),
-            ],
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _split = .5),
-                icon: const Icon(Icons.restart_alt),
-                label: Text(context.t('Reset divider', 'Đặt lại thanh chia')),
-              ),
-            ),
-            const Divider(),
-            ModeControls(settings: widget.settings),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class OnboardingExample extends StatefulWidget {
-  const OnboardingExample({super.key, required this.program});
-  final ui.FragmentProgram program;
-
-  @override
-  State<OnboardingExample> createState() => _OnboardingExampleState();
-}
-
-class _OnboardingExampleState extends State<OnboardingExample> {
-  ui.Image? image;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final loaded = await loadScene(scenes.first.asset);
-      if (!mounted) {
-        loaded.dispose();
-        return;
-      }
-      setState(() => image = loaded);
-    } catch (_) {
-      // Onboarding text is still available if the bundled example is unreadable.
-    }
-  }
-
-  @override
-  void dispose() {
-    image?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final current = image;
-    if (current == null) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(context.t('Original', 'Ảnh gốc')),
-            Text(modeName(context, VisionMode.deutan)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ImageFrame(
-          image: current,
-          program: widget.program,
-          mode: VisionMode.deutan,
-          severity: 1,
-          split: .5,
-          label: context.copy(scenes.first.alt),
-        ),
-      ],
     );
   }
 }
