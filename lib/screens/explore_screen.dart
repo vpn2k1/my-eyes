@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../i18n/copy.dart';
 import '../models/scene.dart';
+import '../theme/palette.dart';
 import '../vision/filters.dart';
 import '../vision/vision_copy.dart';
 import '../widgets/app_icon.dart';
@@ -128,7 +129,30 @@ class _SceneLibrary extends StatelessWidget {
                         ),
                       ),
                       ListTile(
-                        title: Text(context.copy(scene.title)),
+                        title: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: AppAccents.of(context).explore.accent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              child: Text(
+                                context.copy(scene.title),
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      color: AppAccents.of(
+                                        context,
+                                      ).explore.onAccent,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
                         subtitle: Text(context.copy(scene.barrier)),
                         trailing: const AppIcon(AppIcons.chevron),
                       ),

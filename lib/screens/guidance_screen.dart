@@ -44,6 +44,79 @@ class Guidance extends StatelessWidget {
               ? OnboardingExample(program: snapshot.requireData)
               : const SizedBox.shrink(),
         ),
+        const SizedBox(height: 20),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                for (final step in [
+                  (
+                    'hero',
+                    context.t(
+                      '1. Explore a perspective',
+                      '1. Khám phá góc nhìn',
+                    ),
+                    context.t(
+                      'Choose a photo, a scene or the camera.',
+                      'Chọn ảnh, tình huống mẫu hoặc camera.',
+                    ),
+                  ),
+                  (
+                    'compare',
+                    context.t(
+                      '2. Compare side by side',
+                      '2. So sánh hai cách nhìn',
+                    ),
+                    context.t(
+                      'Use the divider to compare with the original.',
+                      'Kéo đường chia để so sánh với ảnh gốc.',
+                    ),
+                  ),
+                  (
+                    'typical',
+                    context.t(
+                      '3. Learn about your vision',
+                      '3. Tìm hiểu sắc giác',
+                    ),
+                    context.t(
+                      'Try a screening to learn more, then seek professional advice.',
+                      'Thử bài sàng lọc. Bài test không thay thế chẩn đoán.',
+                    ),
+                  ),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          'assets/illustrations/${step.$1}.webp',
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.contain,
+                          excludeFromSemantics: true,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                step.$2,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(step.$3),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
         Text(context.copy(simulationNotice)),
         const SizedBox(height: 16),

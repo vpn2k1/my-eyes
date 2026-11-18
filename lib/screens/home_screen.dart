@@ -11,6 +11,7 @@ import '../models/plate.dart';
 import '../models/scene.dart';
 import '../services/media.dart';
 import '../state/app_settings.dart';
+import '../theme/palette.dart';
 import '../vision/filters.dart';
 import '../vision/vision.dart';
 import '../widgets/app_icon.dart';
@@ -93,9 +94,22 @@ class _HomeState extends State<Home> {
     ),
   );
 
-  void _message(String message) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
+  void _message(String message) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Image.asset(
+            'assets/illustrations/recovery.webp',
+            width: 48,
+            height: 48,
+            excludeFromSemantics: true,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(message)),
+        ],
+      ),
+    ),
+  );
 
   Future<void> _openPhoto([XFile? recovered]) async {
     if (_busy) return;
@@ -258,6 +272,7 @@ class _HomeState extends State<Home> {
           ),
           const SizedBox(height: 12),
           _Entry(
+            accent: AppAccents.of(context).experience,
             icon: AppIcons.video,
             title: context.t('Experience a condition', 'Trải nghiệm bệnh lý'),
             description: context.t(
@@ -267,6 +282,7 @@ class _HomeState extends State<Home> {
             onTap: _busy ? null : _chooseType,
           ),
           _Entry(
+            accent: AppAccents.of(context).correction,
             icon: AppIcons.adjust,
             title: context.t('See true colors', 'Hỗ trợ nhìn đúng màu'),
             description: context.t(
@@ -276,6 +292,7 @@ class _HomeState extends State<Home> {
             onTap: _busy ? null : _openCorrection,
           ),
           _Entry(
+            accent: AppAccents.of(context).photo,
             icon: AppIcons.photo,
             title: context.t('Choose photo', 'Chọn ảnh'),
             description: context.t(
@@ -285,6 +302,7 @@ class _HomeState extends State<Home> {
             onTap: _busy ? null : () => unawaited(_openPhoto()),
           ),
           _Entry(
+            accent: AppAccents.of(context).explore,
             icon: AppIcons.learn,
             title: context.t('Explore and learn', 'Khám phá và tìm hiểu'),
             description: context.t(
@@ -300,6 +318,7 @@ class _HomeState extends State<Home> {
           ),
           const SizedBox(height: 12),
           _Entry(
+            accent: AppAccents.of(context).screening,
             icon: AppIcons.search,
             title: context.t('Test your color vision', 'Kiểm tra sắc giác'),
             description: context.t(
@@ -317,24 +336,44 @@ class _HomeState extends State<Home> {
 
 class _Entry extends StatelessWidget {
   const _Entry({
+    required this.accent,
     required this.icon,
     required this.title,
     required this.description,
     this.onTap,
   });
   final AppIcons icon;
+  final FeatureAccent accent;
   final String title, description;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Card(
+    color: accent.accent,
+    margin: const EdgeInsets.symmetric(vertical: 6),
     clipBehavior: Clip.antiAlias,
     child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: AppIcon(icon, size: 44),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      minVerticalPadding: 12,
+      leading: DecoratedBox(
+        decoration: BoxDecoration(
+          color: brandInk,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: AppIcon(icon, size: 36),
+        ),
+      ),
       title: Text(title),
       subtitle: Text(description),
-      trailing: const AppIcon(AppIcons.chevron),
+      titleTextStyle: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(color: accent.onAccent),
+      subtitleTextStyle: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(color: accent.onAccent),
+      trailing: AppIcon(AppIcons.chevron, color: accent.onAccent),
       onTap: onTap,
       enabled: onTap != null,
     ),

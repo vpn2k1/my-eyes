@@ -289,11 +289,28 @@ class _Result extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accents = AppAccents.of(context);
+    final accent = switch (verdict) {
+      Verdict.typical => accents.correction,
+      Verdict.redGreen => accents.photo,
+      Verdict.blueYellow => accents.experience,
+      Verdict.broad => accents.explore,
+    };
+    final illustration = switch (verdict) {
+      Verdict.typical => 'typical',
+      Verdict.redGreen => 'redGreen',
+      Verdict.blueYellow => 'blueYellow',
+      Verdict.broad => 'broad',
+    };
     return Scaffold(
       appBar: AppBar(title: Text(context.t('Result', 'Kết quả'))),
       body: PageColumn(
         children: [
           Card(
+            color: Color.alphaBlend(
+              accent.accent.withValues(alpha: .10),
+              theme.colorScheme.surface,
+            ),
             margin: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               side: const BorderSide(color: brandAmber, width: 2),
@@ -304,9 +321,29 @@ class _Result extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Image.asset(
+                      'assets/illustrations/$illustration.webp',
+                      width: 160,
+                      height: 110,
+                      fit: BoxFit.contain,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      const AppIcon(AppIcons.info, color: brandAmber),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: brandAmber,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(4),
+                          child: AppIcon(AppIcons.info, size: 20),
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(

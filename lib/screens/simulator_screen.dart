@@ -646,6 +646,14 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Image.asset(
+              'assets/illustrations/recovery.webp',
+              width: 112,
+              height: 80,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+            ),
+            const SizedBox(height: 12),
             Text(message),
             const SizedBox(height: 12),
             Wrap(

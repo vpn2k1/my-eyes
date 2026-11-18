@@ -56,8 +56,14 @@ class _OnboardingExampleState extends State<OnboardingExample> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(context.t('Original', 'Ảnh gốc')),
-            Text(filterName(context, allFilters.first)),
+            Expanded(child: Text(context.t('Original', 'Ảnh gốc'))),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                filterName(context, allFilters.first),
+                textAlign: TextAlign.end,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),

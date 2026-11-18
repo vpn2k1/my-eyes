@@ -39,23 +39,57 @@ class _MyEyesState extends State<MyEyes> {
     super.dispose();
   }
 
-  ThemeData _theme(Brightness brightness) => ThemeData(
-    brightness: brightness,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: brandSeed,
-      brightness: brightness,
-    ),
-    useMaterial3: true,
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-    ),
-  );
+  ThemeData _theme(Brightness brightness) {
+    final base = ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: brandSeed,
+        brightness: brightness,
+      ),
+      useMaterial3: true,
+    );
+    final text = base.textTheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    );
+    return base.copyWith(
+      extensions: [
+        brightness == Brightness.dark ? AppAccents.dark : AppAccents.light,
+      ],
+      textTheme: text.copyWith(
+        headlineLarge: text.headlineLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+        headlineMedium: text.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+        headlineSmall: text.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+        titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        titleSmall: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      cardTheme: CardThemeData(elevation: 0, shape: shape),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: shape,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: shape,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: shape,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
