@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'machado.dart';
 
@@ -116,16 +115,4 @@ List<int> simulatePixel(
       _encoded(matrix[i] * r + matrix[i + 1] * g + matrix[i + 2] * b),
     rgba[3],
   ];
-}
-
-void setColorMatrix(
-  ui.FragmentShader shader,
-  VisionMode mode,
-  double severity, {
-  bool correct = false,
-}) {
-  final matrix = visionMatrix(mode, severity, correct: correct);
-  for (var i = 0; i < matrix.length; i++) {
-    shader.setFloat(i + 2, matrix[i]);
-  }
 }

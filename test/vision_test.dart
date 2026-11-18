@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_eyes/vision/filters.dart';
+import 'package:my_eyes/vision/glasses_matrices.dart';
 import 'package:my_eyes/vision/vision.dart';
 
 void main() {
@@ -74,5 +76,23 @@ void main() {
     }
 
     expect(gap(true), greaterThan(gap(false)));
+  });
+
+  test('real-glasses presets blend their literal matrix by severity', () {
+    for (final matrix in [
+      notchRedGreenMatrix,
+      broadTintRedGreenMatrix,
+      monocularRedTintMatrix,
+      tritanTintMatrix,
+    ]) {
+      final filter = VisionFilter('test', VisionMode.deutan, matrix: matrix);
+      expect(filter.hasSeverity, isTrue);
+      expect(visionMatrixFor(filter, 0), identity);
+      expect(visionMatrixFor(filter, 1), matrix);
+      final half = visionMatrixFor(filter, .5);
+      for (var i = 0; i < 9; i++) {
+        expect(half[i], closeTo((identity[i] + matrix[i]) / 2, 1e-9));
+      }
+    }
   });
 }

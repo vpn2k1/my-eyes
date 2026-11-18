@@ -95,6 +95,22 @@ String filterName(BuildContext context, VisionFilter filter) =>
         'Boost blue – yellow',
         'Tăng phân biệt xanh dương – vàng',
       ),
+      'notchRedGreen' => context.t(
+        'Narrow-notch red-green filter',
+        'Kính lọc notch hẹp đỏ – xanh lá',
+      ),
+      'broadTintRedGreen' => context.t(
+        'Broad-tint red-green filter',
+        'Kính nhuộm màu rộng đỏ – xanh lá',
+      ),
+      'monocularRedTint' => context.t(
+        'Single-eye red tint',
+        'Kính nhuộm đỏ một mắt',
+      ),
+      'tritanTint' => context.t(
+        'Blue-yellow support tint',
+        'Kính hỗ trợ xanh dương – vàng',
+      ),
       'cataract' => context.t('Cataract', 'Đục thủy tinh thể'),
       'glaucoma' => context.t('Glaucoma', 'Glaucoma – tăng nhãn áp'),
       'macularDegeneration' => context.t(
@@ -128,6 +144,22 @@ LocalText filterNote(VisionFilter filter) => switch (filter.id) {
   'correctDeutan' || 'correctProtan' || 'correctTritan' => words(
     'Shifts confusable colors apart instead of simulating the loss. Helpful on charts and maps, not a cure.',
     'Dịch các màu dễ lẫn ra xa nhau thay vì mô phỏng khiếm khuyết. Hữu ích với biểu đồ và bản đồ, không phải cách chữa.',
+  ),
+  'notchRedGreen' => words(
+    'Approximates a narrow-band filter over the red/green overlap wavelengths, from published filter specs - not an exact manufacturer formula.',
+    'Xấp xỉ một kính lọc dải hẹp ở vùng sóng đỏ/xanh lá chồng lấp, dựa trên thông số công khai - không phải công thức chính xác của nhà sản xuất.',
+  ),
+  'broadTintRedGreen' => words(
+    'Approximates a wider, less selective tint than a narrow-notch filter, from published filter specs.',
+    'Xấp xỉ một kính nhuộm màu rộng, ít chọn lọc hơn kính lọc notch hẹp, dựa trên thông số công khai.',
+  ),
+  'monocularRedTint' => words(
+    'Real single-eye designs rely on the brain comparing two different images, one per eye - a single screen viewed with both eyes cannot reproduce that. This only shows the color change for the covered eye.',
+    'Thiết kế kính một mắt thật dựa vào việc não so sánh hai ảnh khác nhau ở mỗi mắt - một màn hình xem bằng cả hai mắt không thể tái hiện điều đó. Đây chỉ minh họa phần thay đổi màu ở mắt bị che.',
+  ),
+  'tritanTint' => words(
+    'The least documented of this set - far fewer public sources describe blue-yellow correction filters than red-green ones.',
+    'Loại ít tài liệu nhất trong nhóm này - có rất ít nguồn công khai mô tả kính hỗ trợ xanh dương – vàng so với kính đỏ – xanh lá.',
   ),
   'cataract' => words(
     'A clouded lens scatters light: everything softens and takes on a yellow cast.',
@@ -195,6 +227,10 @@ LocalText groupTitle(FilterGroup group) => switch (group) {
     'HELP TELL COLORS APART',
     'HỖ TRỢ PHÂN BIỆT MÀU',
   ),
+  FilterGroup.realGlasses => words(
+    'REAL GLASSES SIMULATION',
+    'MÔ PHỎNG KÍNH MÙ MÀU THẬT',
+  ),
   FilterGroup.condition => words('OTHER EYE CONDITIONS', 'BỆNH LÝ MẮT KHÁC'),
 };
 
@@ -208,6 +244,10 @@ LocalText? groupNote(FilterGroup group) => switch (group) {
   FilterGroup.correction => words(
     'These help you see differences, not lose them',
     'Các chế độ này giúp thấy rõ khác biệt, không phải mô phỏng khiếm khuyết',
+  ),
+  FilterGroup.realGlasses => words(
+    'Approximates published optical specs for real products, not the exact manufacturer formula',
+    'Xấp xỉ theo thông số quang học công khai của sản phẩm thật, không phải công thức chính xác của nhà sản xuất',
   ),
   FilterGroup.condition => words(
     'Rough illustrations of field and clarity loss, not an optical model',

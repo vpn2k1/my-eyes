@@ -64,7 +64,7 @@ class ModeControls extends StatelessWidget {
         const SizedBox(height: 12),
         Text(context.copy(filterNote(settings.filter))),
         const SizedBox(height: 12),
-        if (settings.mode.hasSeverity) ...[
+        if (settings.filter.hasSeverity) ...[
           Text(
             settings.filter.correct
                 ? context.t(

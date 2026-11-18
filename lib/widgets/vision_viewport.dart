@@ -92,7 +92,7 @@ class _ImagePainter extends CustomPainter {
       ..setFloat(0, size.width)
       ..setFloat(1, size.height)
       ..setImageSampler(0, image);
-    setColorMatrix(shader, filter.mode, severity, correct: filter.correct);
+    setColorMatrixFor(shader, filter, severity);
     final divider = size.width * (split ?? 0);
     canvas.save();
     canvas.clipRect(
@@ -158,12 +158,7 @@ class _VisionCameraFilterState extends State<VisionCameraFilter> {
 
   ui.FragmentShader _createShader() {
     final result = widget.program.fragmentShader();
-    setColorMatrix(
-      result,
-      widget.filter.mode,
-      widget.severity,
-      correct: widget.filter.correct,
-    );
+    setColorMatrixFor(result, widget.filter, widget.severity);
     return result;
   }
 

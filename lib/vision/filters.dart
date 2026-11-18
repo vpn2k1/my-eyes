@@ -1,5 +1,6 @@
-import 'dart:ui' show Color;
+import 'dart:ui' show Color, FragmentShader;
 
+import 'glasses_matrices.dart';
 import 'vision.dart';
 
 /// Loss a 3x3 color matrix cannot express: blur, a haze over everything, or a
@@ -38,6 +39,7 @@ class VisionFilter {
     this.severity = 1,
     this.correct = false,
     this.effect,
+    this.matrix,
   });
 
   /// Stable key for copy lookup; never shown to the user.
@@ -50,15 +52,54 @@ class VisionFilter {
   /// Shifts colors apart to help someone with [mode] rather than simulating it.
   final bool correct;
   final VisionEffect? effect;
+
+  /// Overrides the [mode]/[correct] simulation table with a literal matrix -
+  /// used for presets modeling a real glasses product rather than a vision
+  /// deficiency. [mode] is kept only so this filter still has a severity
+  /// slider and a copy fallback.
+  final List<double>? matrix;
+
+  /// Whether the strength slider applies: either the usual per-mode table,
+  /// or a literal [matrix] blended against identity.
+  bool get hasSeverity => mode.hasSeverity || matrix != null;
 }
 
-enum FilterGroup { redGreen, blueYellow, noColor, correction, condition }
+/// The [filter]'s matrix at [severity]: its literal [VisionFilter.matrix],
+/// blended with identity by severity, or the usual deficiency simulation.
+List<double> visionMatrixFor(VisionFilter filter, double severity) {
+  if (filter.matrix case final glasses?) {
+    final mix = severity.clamp(0.0, 1.0);
+    return List.generate(9, (i) => identity[i] * (1 - mix) + glasses[i] * mix);
+  }
+  return visionMatrix(filter.mode, severity, correct: filter.correct);
+}
+
+void setColorMatrixFor(
+  FragmentShader shader,
+  VisionFilter filter,
+  double severity,
+) {
+  final matrix = visionMatrixFor(filter, severity);
+  for (var i = 0; i < matrix.length; i++) {
+    shader.setFloat(i + 2, matrix[i]);
+  }
+}
+
+enum FilterGroup {
+  redGreen,
+  blueYellow,
+  noColor,
+  correction,
+  realGlasses,
+  condition,
+}
 
 /// The app's two offerings: simulate a vision difference to experience it,
 /// or shift colors apart to help tell them apart.
 enum FilterCategory { experience, correction }
 
-FilterCategory categoryOf(FilterGroup group) => group == FilterGroup.correction
+FilterCategory categoryOf(FilterGroup group) =>
+    group == FilterGroup.correction || group == FilterGroup.realGlasses
     ? FilterCategory.correction
     : FilterCategory.experience;
 
@@ -85,6 +126,32 @@ const filterCatalog = <FilterGroup, List<VisionFilter>>{
     VisionFilter('correctDeutan', VisionMode.deutan, correct: true),
     VisionFilter('correctProtan', VisionMode.protan, correct: true),
     VisionFilter('correctTritan', VisionMode.tritan, correct: true),
+  ],
+  FilterGroup.realGlasses: [
+    VisionFilter(
+      'notchRedGreen',
+      VisionMode.deutan,
+      correct: true,
+      matrix: notchRedGreenMatrix,
+    ),
+    VisionFilter(
+      'broadTintRedGreen',
+      VisionMode.deutan,
+      correct: true,
+      matrix: broadTintRedGreenMatrix,
+    ),
+    VisionFilter(
+      'monocularRedTint',
+      VisionMode.protan,
+      correct: true,
+      matrix: monocularRedTintMatrix,
+    ),
+    VisionFilter(
+      'tritanTint',
+      VisionMode.tritan,
+      correct: true,
+      matrix: tritanTintMatrix,
+    ),
   ],
   FilterGroup.condition: [
     VisionFilter(
