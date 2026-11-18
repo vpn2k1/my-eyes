@@ -6,12 +6,16 @@ import '../vision/filters.dart';
 import '../vision/vision_copy.dart';
 
 class ModeControls extends StatelessWidget {
-  const ModeControls({super.key, required this.settings});
+  const ModeControls({super.key, required this.settings, this.category});
   final SimulationSettings settings;
+
+  /// Restricts the picker to one category, e.g. support-only. Null shows both.
+  final FilterCategory? category;
 
   @override
   Widget build(BuildContext context) {
     final severity = (settings.severity * 100).round();
+    final categories = category == null ? FilterCategory.values : [category!];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -19,8 +23,8 @@ class ModeControls extends StatelessWidget {
           context.t('Vision mode', 'Chế độ sắc giác'),
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        for (final category in FilterCategory.values) ...[
-          if (category != FilterCategory.values.first) ...[
+        for (final category in categories) ...[
+          if (category != categories.first) ...[
             const SizedBox(height: 14),
             const Divider(),
           ],

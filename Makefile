@@ -1,4 +1,5 @@
 PLATFORM ?= android
+VERSION ?= 0.1.0+1
 
 .PHONY: help get analyze test build apk install release patch icons
 

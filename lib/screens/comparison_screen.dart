@@ -17,11 +17,15 @@ class Comparison extends StatefulWidget {
     required this.program,
     required this.settings,
     this.description,
+    this.category,
   });
   final ui.Image image;
   final ui.FragmentProgram program;
   final SimulationSettings settings;
   final LocalText? description;
+
+  /// Restricts the mode picker to one category, e.g. support-only entries.
+  final FilterCategory? category;
 
   @override
   State<Comparison> createState() => _ComparisonState();
@@ -142,7 +146,7 @@ class _ComparisonState extends State<Comparison> {
                 ),
               ),
             const Divider(),
-            ModeControls(settings: widget.settings),
+            ModeControls(settings: widget.settings, category: widget.category),
           ],
         ),
       ),

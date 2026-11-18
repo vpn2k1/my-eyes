@@ -124,6 +124,7 @@ class _HomeState extends State<Home> {
     ui.Image? image,
     Scene? scene,
     VisionFilter? filter,
+    FilterCategory? category,
   }) async {
     final ui.FragmentProgram program;
     try {
@@ -146,6 +147,7 @@ class _HomeState extends State<Home> {
         photo: image,
         scene: scene,
         filter: filter,
+        category: category,
         openPhoto: () => unawaited(_openPhoto()),
         explore: _explore,
       ),
@@ -165,8 +167,12 @@ class _HomeState extends State<Home> {
 
   /// Opens the camera straight into the single color-support preset, with no
   /// picker in between: this entry offers help, not a diagnosis to choose.
-  void _openCorrection() =>
-      unawaited(_openSimulator(filter: defaultCorrectionFor(VisionMode.protan)));
+  void _openCorrection() => unawaited(
+    _openSimulator(
+      filter: defaultCorrectionFor(VisionMode.protan),
+      category: FilterCategory.correction,
+    ),
+  );
 
   void _explore() => Navigator.of(context).push<void>(
     MaterialPageRoute(

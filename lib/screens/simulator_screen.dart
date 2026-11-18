@@ -29,6 +29,7 @@ class Simulator extends StatefulWidget {
     this.photo,
     this.scene,
     this.filter,
+    this.category,
   });
 
   final ui.FragmentProgram program;
@@ -38,6 +39,9 @@ class Simulator extends StatefulWidget {
 
   /// Filter chosen before the camera opened, if any.
   final VisionFilter? filter;
+
+  /// Restricts the mode picker to one category, e.g. support-only entries.
+  final FilterCategory? category;
 
   @override
   State<Simulator> createState() => _SimulatorState();
@@ -296,6 +300,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         program: widget.program,
         settings: settings,
         description: widget.scene?.alt,
+        category: widget.category,
       ),
     );
     await Navigator.of(context).push(route);
@@ -377,7 +382,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                   else
                     const SizedBox(height: 120),
                   const SizedBox(height: 16),
-                  ModeControls(settings: settings),
+                  ModeControls(settings: settings, category: widget.category),
                 ],
               ),
             ),
@@ -609,7 +614,8 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         // Reuse the controls the photo and scene paths already use.
         child: ListenableBuilder(
           listenable: settings,
-          builder: (context, _) => ModeControls(settings: settings),
+          builder: (context, _) =>
+              ModeControls(settings: settings, category: widget.category),
         ),
       ),
     ),
