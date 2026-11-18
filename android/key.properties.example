@@ -1,0 +1,4 @@
+storePassword=<your keystore password>
+keyPassword=<your key password>
+keyAlias=my_eyes_upload
+storeFile=/absolute/path/to/my-eyes-upload-key.jks

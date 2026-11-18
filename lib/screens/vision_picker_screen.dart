@@ -49,7 +49,7 @@ class _VisionPickerState extends State<VisionPicker> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(context.t('Choose a type', 'Chọn loại sắc giác')),
+      title: Text(context.t('Experience a condition', 'Trải nghiệm bệnh lý')),
     ),
     body: PageColumn(
       children: [
@@ -60,31 +60,22 @@ class _VisionPickerState extends State<VisionPicker> {
           ),
         ),
         const SizedBox(height: 20),
-        for (final category in FilterCategory.values) ...[
-          _CategoryHeading(
-            title: context.copy(categoryTitle(category)),
-            note: switch (categoryNote(category)) {
+        for (final group in filterCatalog.entries.where(
+          (group) => categoryOf(group.key) == FilterCategory.experience,
+        )) ...[
+          _Heading(
+            title: context.copy(groupTitle(group.key)),
+            note: switch (groupNote(group.key)) {
               final note? => context.copy(note),
               _ => null,
             },
           ),
-          for (final group in filterCatalog.entries.where(
-            (group) => categoryOf(group.key) == category,
-          )) ...[
-            _Heading(
-              title: context.copy(groupTitle(group.key)),
-              note: switch (groupNote(group.key)) {
-                final note? => context.copy(note),
-                _ => null,
-              },
+          for (final filter in group.value)
+            _FilterRow(
+              filter: filter,
+              selected: _selected,
+              onTap: widget.openCamera,
             ),
-            for (final filter in group.value)
-              _FilterRow(
-                filter: filter,
-                selected: _selected,
-                onTap: widget.openCamera,
-              ),
-          ],
         ],
         const SizedBox(height: 12),
         const Divider(),
@@ -114,30 +105,6 @@ class _VisionPickerState extends State<VisionPicker> {
         ),
         const SizedBox(height: 16),
         Text(context.copy(simulationNotice)),
-      ],
-    ),
-  );
-}
-
-class _CategoryHeading extends StatelessWidget {
-  const _CategoryHeading({required this.title, this.note});
-  final String title;
-  final String? note;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 4),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(),
-        const SizedBox(height: 12),
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        if (note case final text?)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-          ),
       ],
     ),
   );

@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(MyEyes(prefs: prefs));
     await tester.pumpAndSettle();
-    expect(find.text('Open camera'), findsOneWidget);
+    expect(find.text('Experience a condition'), findsOneWidget);
     await tester.tap(find.byTooltip('About My Eyes'));
     await tester.pumpAndSettle();
     expect(find.textContaining('cannot diagnose'), findsOneWidget);
@@ -64,6 +64,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MyEyes(prefs: prefs));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Explore and learn'));
     await tester.tap(find.text('Explore and learn'));
     await tester.pumpAndSettle();
     await tester.runAsync(() async {
@@ -160,7 +161,7 @@ void main() {
     );
     await tester.tapAt(const Offset(195, 20));
     await tester.pumpAndSettle();
-    expect(find.text('Mở camera'), findsOneWidget);
+    expect(find.text('Trải nghiệm bệnh lý'), findsOneWidget);
 
     // The stored choices apply again on the next launch.
     await tester.pumpWidget(const SizedBox());
@@ -169,7 +170,7 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
     expect(app.locale, const Locale('vi'));
-    expect(find.text('Mở camera'), findsOneWidget);
+    expect(find.text('Trải nghiệm bệnh lý'), findsOneWidget);
   });
 
   testWidgets('each entry seeds its own strength and conditions have none', (
@@ -222,7 +223,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MyEyes(prefs: prefs));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open camera'));
+    await tester.tap(find.text('Experience a condition'));
     await tester.pumpAndSettle();
 
     // Red-green is a group heading, not a selectable type of its own; the
@@ -234,9 +235,10 @@ void main() {
     expect(find.text('Protanopia'), findsOneWidget);
     expect(find.text('Check your eyes'), findsOneWidget);
 
-    // Correction and the non-color conditions are their own groups.
+    // Color support is reached directly from Home now, not through this
+    // picker; only the experience groups remain here.
     await tester.scrollUntilVisible(find.text('Glaucoma'), 200);
-    expect(find.text('HELP TELL COLORS APART'), findsOneWidget);
+    expect(find.text('HELP TELL COLORS APART'), findsNothing);
     expect(find.text('OTHER EYE CONDITIONS'), findsOneWidget);
   });
 

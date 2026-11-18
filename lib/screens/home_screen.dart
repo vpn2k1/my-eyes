@@ -12,6 +12,7 @@ import '../models/scene.dart';
 import '../services/media.dart';
 import '../state/app_settings.dart';
 import '../vision/filters.dart';
+import '../vision/vision.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/hero_card.dart';
 import '../widgets/page_column.dart';
@@ -162,6 +163,11 @@ class _HomeState extends State<Home> {
     ),
   );
 
+  /// Opens the camera straight into the single color-support preset, with no
+  /// picker in between: this entry offers help, not a diagnosis to choose.
+  void _openCorrection() =>
+      unawaited(_openSimulator(filter: defaultCorrectionFor(VisionMode.protan)));
+
   void _explore() => Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => Explore(
@@ -247,12 +253,21 @@ class _HomeState extends State<Home> {
           const SizedBox(height: 12),
           _Entry(
             icon: AppIcons.video,
-            title: context.t('Open camera', 'Mở camera'),
+            title: context.t('Experience a condition', 'Trải nghiệm bệnh lý'),
             description: context.t(
-              'Choose a type, then see the colors around you',
-              'Chọn loại sắc giác, rồi quan sát màu sắc xung quanh',
+              'Choose color blindness or another eye condition, then see through it',
+              'Chọn mù màu hoặc một bệnh lý mắt khác, rồi quan sát qua góc nhìn đó',
             ),
             onTap: _busy ? null : _chooseType,
+          ),
+          _Entry(
+            icon: AppIcons.adjust,
+            title: context.t('See true colors', 'Hỗ trợ nhìn đúng màu'),
+            description: context.t(
+              'Shifts confusable colors apart so they are easier to tell apart',
+              'Dịch các màu dễ lẫn ra xa nhau để dễ phân biệt hơn',
+            ),
+            onTap: _busy ? null : _openCorrection,
           ),
           _Entry(
             icon: AppIcons.photo,

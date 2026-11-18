@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:upgrader/upgrader.dart';
 
 import 'screens/home_screen.dart';
 import 'state/app_settings.dart';
@@ -68,7 +69,10 @@ class _MyEyesState extends State<MyEyes> {
       locale: _settings.locale,
       supportedLocales: const [Locale('en'), Locale('vi')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: Home(prefs: _prefs, settings: _settings),
+      home: UpgradeAlert(
+        // Soft reminder: no minAppVersion set, Ignore/Later shown by default.
+        child: Home(prefs: _prefs, settings: _settings),
+      ),
     ),
   );
 }

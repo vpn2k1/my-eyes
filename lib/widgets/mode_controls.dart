@@ -19,38 +19,47 @@ class ModeControls extends StatelessWidget {
           context.t('Vision mode', 'Chế độ sắc giác'),
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        for (final group in filterCatalog.entries) ...[
-          if (group.key == FilterGroup.correction) ...[
+        for (final category in FilterCategory.values) ...[
+          if (category != FilterCategory.values.first) ...[
             const SizedBox(height: 14),
             const Divider(),
-            const SizedBox(height: 4),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            context.copy(categoryTitle(category)),
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          if (categoryNote(category) case final note?)
             Text(
-              context.copy(categoryTitle(FilterCategory.correction)),
-              style: Theme.of(context).textTheme.labelMedium,
+              context.copy(note),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          for (final group in filterCatalog.entries.where(
+            (group) => categoryOf(group.key) == category,
+          )) ...[
+            const SizedBox(height: 10),
+            Text(
+              context.copy(groupTitle(group.key)),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                letterSpacing: .8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final filter in group.value)
+                  ChoiceChip(
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    label: Text(filterName(context, filter)),
+                    selected: filter == settings.filter,
+                    onSelected: (_) => settings.select(filter),
+                  ),
+              ],
             ),
           ],
-          const SizedBox(height: 10),
-          Text(
-            context.copy(groupTitle(group.key)),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              letterSpacing: .8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final filter in group.value)
-                ChoiceChip(
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  label: Text(filterName(context, filter)),
-                  selected: filter == settings.filter,
-                  onSelected: (_) => settings.select(filter),
-                ),
-            ],
-          ),
         ],
         const SizedBox(height: 12),
         Text(context.copy(filterNote(settings.filter))),
