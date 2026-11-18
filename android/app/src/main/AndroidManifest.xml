@@ -6,7 +6,7 @@
     <!-- Keep photo and scene flows available on devices with no camera. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
-        android:label="My Eyes"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
