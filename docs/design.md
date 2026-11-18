@@ -95,3 +95,14 @@ reviewed at original, protan, deutan and tritan settings; the five fills remain
 separated in lightness. All four light/dark result variants were also reviewed.
 The same review suite walked through Vision Picker, camera fallback, Explore,
 Learn, scene simulation and comparison in both themes.
+
+Experience list and chip follow-up: condition rows now use rounded, lightly
+tinted cards with a group illustration, a distinct directional action, and a
+checkmark/semantic selected state for a suggested filter. Shared ChipTheme styling
+uses 20 px corners, flat fills, a primary/onPrimary selected pair and a visible
+checkmark. Mode chips retain compact 20 px artwork when unselected. Their label
+width reserves space for padding and the check, and a local DefaultTextStyle
+removes RawChip's one-line default so Vietnamese names wrap in full. ChoiceChips
+retain padded 48 px touch targets, including comparison-layout chips. The
+light/dark review adds checks for 320 px / 200% Vietnamese labels, no line-limit
+truncation, and correct selection after tapping a wrapped label.

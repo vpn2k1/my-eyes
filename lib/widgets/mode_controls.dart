@@ -4,6 +4,7 @@ import '../i18n/copy.dart';
 import '../state/simulation_settings.dart';
 import '../vision/filters.dart';
 import '../vision/vision_copy.dart';
+import 'app_icon.dart';
 
 class ModeControls extends StatelessWidget {
   const ModeControls({
@@ -24,93 +25,128 @@ class ModeControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final severity = (settings.severity * 100).round();
     final categories = category == null ? FilterCategory.values : [category!];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          context.t('Vision mode', 'Chế độ sắc giác'),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        for (final category in categories) ...[
-          if (category != categories.first) ...[
-            const SizedBox(height: 14),
-            const Divider(),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            context.copy(categoryTitle(category)),
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-          if (categoryNote(category) case final note?)
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Reserve the chip's padding and checkmark before measuring wrapped labels.
+        final labelWidth = (constraints.maxWidth - 64).clamp(
+          48.0,
+          double.infinity,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              context.copy(note),
-              style: Theme.of(context).textTheme.bodySmall,
+              context.t('Vision mode', 'Chế độ sắc giác'),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-          for (final group in filterCatalog.entries.where(
-            (group) => categoryOf(group.key) == category,
-          )) ...[
-            const SizedBox(height: 10),
-            Text(
-              context.copy(groupTitle(group.key)),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                letterSpacing: .8,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final filter in group.value)
-                  ChoiceChip(
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    label: Text(filterName(context, filter)),
-                    selected: filter == settings.filter,
-                    onSelected: (_) {
-                      settings.select(filter);
-                      onSelect?.call();
-                    },
-                  ),
+            for (final category in categories) ...[
+              if (category != categories.first) ...[
+                const SizedBox(height: 14),
+                const Divider(),
               ],
-            ),
-          ],
-        ],
-        const SizedBox(height: 12),
-        Text(context.copy(filterNote(settings.filter))),
-        const SizedBox(height: 12),
-        if (settings.filter.hasSeverity) ...[
-          Text(
-            settings.filter.correct
-                ? context.t(
-                    'Correction strength · $severity%',
-                    'Mức độ hỗ trợ · $severity%',
-                  )
-                : context.t(
-                    'Simulation strength · $severity%',
-                    'Mức độ mô phỏng · $severity%',
+              const SizedBox(height: 4),
+              Text(
+                context.copy(categoryTitle(category)),
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              if (categoryNote(category) case final note?)
+                Text(
+                  context.copy(note),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              for (final group in filterCatalog.entries.where(
+                (group) => categoryOf(group.key) == category,
+              )) ...[
+                const SizedBox(height: 10),
+                Text(
+                  context.copy(groupTitle(group.key)),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    letterSpacing: .8,
                   ),
-          ),
-          Semantics(
-            label: settings.filter.correct
-                ? context.t('Correction strength', 'Mức độ hỗ trợ')
-                : context.t('Simulation strength', 'Mức độ mô phỏng'),
-            child: Slider(
-              value: settings.severity,
-              divisions: 100,
-              label: '$severity%',
-              semanticFormatterCallback: (value) => '${(value * 100).round()}%',
-              onChanged: settings.setSeverity,
-            ),
-          ),
-        ] else
-          Text(
-            context.t(
-              'This mode has a fixed strength.',
-              'Chế độ này có mức độ cố định.',
-            ),
-          ),
-      ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final filter in group.value)
+                      ChoiceChip(
+                        avatar: filter == settings.filter
+                            ? const SizedBox.square(dimension: 20)
+                            : AppIcon(
+                                filter.correct
+                                    ? AppIcons.palette
+                                    : AppIcons.eye,
+                                size: 20,
+                              ),
+                        avatarBoxConstraints: const BoxConstraints.tightFor(
+                          width: 20,
+                          height: 20,
+                        ),
+                        materialTapTargetSize: MaterialTapTargetSize.padded,
+                        label: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: labelWidth),
+                          child: Builder(
+                            builder: (context) => DefaultTextStyle(
+                              // RawChip defaults to one line; preserve its themed style
+                              // while allowing complete labels at large text scales.
+                              style: DefaultTextStyle.of(context).style,
+                              child: Text(
+                                filterName(context, filter),
+                                softWrap: true,
+                              ),
+                            ),
+                          ),
+                        ),
+                        selected: filter == settings.filter,
+                        onSelected: (_) {
+                          settings.select(filter);
+                          onSelect?.call();
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            ],
+            const SizedBox(height: 12),
+            Text(context.copy(filterNote(settings.filter))),
+            const SizedBox(height: 12),
+            if (settings.filter.hasSeverity) ...[
+              Text(
+                settings.filter.correct
+                    ? context.t(
+                        'Correction strength · $severity%',
+                        'Mức độ hỗ trợ · $severity%',
+                      )
+                    : context.t(
+                        'Simulation strength · $severity%',
+                        'Mức độ mô phỏng · $severity%',
+                      ),
+              ),
+              Semantics(
+                label: settings.filter.correct
+                    ? context.t('Correction strength', 'Mức độ hỗ trợ')
+                    : context.t('Simulation strength', 'Mức độ mô phỏng'),
+                child: Slider(
+                  value: settings.severity,
+                  divisions: 100,
+                  label: '$severity%',
+                  semanticFormatterCallback: (value) =>
+                      '${(value * 100).round()}%',
+                  onChanged: settings.setSeverity,
+                ),
+              ),
+            ] else
+              Text(
+                context.t(
+                  'This mode has a fixed strength.',
+                  'Chế độ này có mức độ cố định.',
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

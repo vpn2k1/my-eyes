@@ -48,6 +48,7 @@ class _MyEyesState extends State<MyEyes> {
       useMaterial3: true,
     );
     final text = base.textTheme;
+    final scheme = base.colorScheme;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
     );
@@ -68,6 +69,32 @@ class _MyEyesState extends State<MyEyes> {
         titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         titleSmall: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 0,
+        pressElevation: 0,
+        backgroundColor: scheme.surfaceContainerLow,
+        secondarySelectedColor: scheme.primary,
+        checkmarkColor: scheme.onPrimary,
+        showCheckmark: true,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        labelStyle: text.labelLarge?.copyWith(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        secondaryLabelStyle: text.labelLarge?.copyWith(
+          color: scheme.onPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : scheme.outlineVariant,
+          ),
+        ),
       ),
       cardTheme: CardThemeData(elevation: 0, shape: shape),
       filledButtonTheme: FilledButtonThemeData(

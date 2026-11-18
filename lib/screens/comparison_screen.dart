@@ -67,11 +67,13 @@ class _ComparisonState extends State<Comparison> {
               children: [
                 if (!spatial)
                   ChoiceChip(
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
                     label: Text(context.t('Split slider', 'Thanh chia ảnh')),
                     selected: !sideBySide,
                     onSelected: (_) => setState(() => _sideBySide = false),
                   ),
                 ChoiceChip(
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
                   label: Text(context.t('Side by side', 'Đặt cạnh nhau')),
                   selected: sideBySide,
                   onSelected: (_) => setState(() => _sideBySide = true),

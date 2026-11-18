@@ -73,6 +73,7 @@ class _VisionPickerState extends State<VisionPicker> {
           for (final filter in group.value)
             _FilterRow(
               filter: filter,
+              group: group.key,
               selected: _selected,
               onTap: widget.openCamera,
             ),
@@ -84,14 +85,23 @@ class _VisionPickerState extends State<VisionPicker> {
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             side: const BorderSide(color: brandAmber, width: 2),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 6,
             ),
-            leading: const AppIcon(AppIcons.search, color: brandAmber),
+            leading: const DecoratedBox(
+              decoration: BoxDecoration(
+                color: brandInk,
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: AppIcon(AppIcons.search, size: 32),
+              ),
+            ),
             title: Text(context.t('Check your eyes', 'Kiểm tra mắt bạn')),
             subtitle: Text(
               context.t(
@@ -117,19 +127,22 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 12, bottom: 6, left: 4),
+    padding: const EdgeInsets.only(top: 24, bottom: 10, left: 4),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
             color: Theme.of(context).colorScheme.primary,
-            letterSpacing: .8,
+            fontWeight: FontWeight.w800,
+            letterSpacing: .5,
           ),
         ),
-        if (note case final text?)
+        if (note case final text?) ...[
+          const SizedBox(height: 4),
           Text(text, style: Theme.of(context).textTheme.bodySmall),
+        ],
       ],
     ),
   );
@@ -138,35 +151,105 @@ class _Heading extends StatelessWidget {
 class _FilterRow extends StatelessWidget {
   const _FilterRow({
     required this.filter,
+    required this.group,
     required this.selected,
     required this.onTap,
   });
   final VisionFilter filter;
+  final FilterGroup group;
   final VisionFilter? selected;
   final void Function(VisionFilter filter) onTap;
 
   @override
   Widget build(BuildContext context) {
     final isSelected = filter == selected;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final accents = AppAccents.of(context);
+    final accent = switch (group) {
+      FilterGroup.redGreen => accents.photo,
+      FilterGroup.blueYellow => accents.experience,
+      FilterGroup.noColor => accents.explore,
+      FilterGroup.condition ||
+      FilterGroup.correction ||
+      FilterGroup.realGlasses => accents.correction,
+    };
+    final illustration = switch (group) {
+      FilterGroup.redGreen => 'redGreen',
+      FilterGroup.blueYellow => 'blueYellow',
+      FilterGroup.noColor => 'broad',
+      _ => 'hero',
+    };
+    final background = isSelected
+        ? scheme.primaryContainer
+        : Color.alphaBlend(
+            accent.accent.withValues(alpha: .08),
+            scheme.surface,
+          );
+    final foreground = isSelected
+        ? scheme.onPrimaryContainer
+        : scheme.onSurface;
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      color: background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? scheme.primary : scheme.outlineVariant,
+          width: isSelected ? 2 : 1,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         selected: isSelected,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: CircleAvatar(
-          backgroundColor: isSelected
-              ? scheme.primary
-              : scheme.primaryContainer,
-          foregroundColor: isSelected
-              ? scheme.onPrimary
-              : scheme.onPrimaryContainer,
-          // Pair the selected color with a check icon, never color alone.
-          child: AppIcon(isSelected ? AppIcons.check : AppIcons.eye),
+        selectedTileColor: background,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        leading: DecoratedBox(
+          decoration: BoxDecoration(
+            color: brandInk,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              'assets/illustrations/$illustration.webp',
+              width: 48,
+              height: 48,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+            ),
+          ),
         ),
         title: Text(filterName(context, filter)),
-        subtitle: Text(context.copy(filterNote(filter))),
-        trailing: const AppIcon(AppIcons.chevron),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w700,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(context.copy(filterNote(filter))),
+        ),
+        subtitleTextStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: foreground,
+        ),
+        // The check and semantic selected state also identify the test suggestion.
+        trailing: DecoratedBox(
+          decoration: BoxDecoration(
+            color: isSelected ? scheme.primary : scheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: AppIcon(
+              isSelected ? AppIcons.check : AppIcons.chevron,
+              color: isSelected ? scheme.onPrimary : scheme.onSurface,
+              size: 18,
+            ),
+          ),
+        ),
         onTap: () => onTap(filter),
       ),
     );

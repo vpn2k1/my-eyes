@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:my_eyes/main.dart';
+import 'package:my_eyes/widgets/mode_controls.dart';
+import 'package:my_eyes/state/simulation_settings.dart';
 import 'package:my_eyes/models/eye_test_score.dart';
 import 'package:my_eyes/models/plate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -177,6 +179,80 @@ void main() {
         expect(find.text('Original'), findsOneWidget);
         expect(find.text('Simulated'), findsOneWidget);
         await capture(tester, 'comparison-${brightness.name}');
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'mode chips wrap Vietnamese labels and preserve selection in ${brightness.name}',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 1100));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(MyEyes(prefs: await preferences(brightness)));
+        await tester.pumpAndSettle();
+        final theme = Theme.of(tester.element(find.text('My Eyes').first));
+        final settings = SimulationSettings();
+        addTearDown(settings.dispose);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: previewKey,
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: theme,
+              locale: const Locale('vi'),
+              supportedLocales: const [Locale('vi')],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: ListenableBuilder(
+                    listenable: settings,
+                    builder: (context, _) => ModeControls(settings: settings),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(theme.chipTheme.shape, isA<RoundedRectangleBorder>());
+        expect(theme.chipTheme.showCheckmark, isTrue);
+        for (final element in find.byType(ChoiceChip).evaluate()) {
+          final rect = tester.getRect(
+            find.byElementPredicate((e) => e == element),
+          );
+          expect(rect.height, greaterThanOrEqualTo(48));
+          expect(rect.left, greaterThanOrEqualTo(20));
+          expect(rect.right, lessThanOrEqualTo(300));
+        }
+        for (final element
+            in find
+                .descendant(
+                  of: find.byType(ChoiceChip),
+                  matching: find.byType(RichText),
+                )
+                .evaluate()) {
+          final paragraph = element.renderObject! as RenderParagraph;
+          expect(paragraph.didExceedMaxLines, isFalse);
+        }
+        final target = find.ancestor(
+          of: find.text('Deuteranomaly – giảm sắc xanh lá'),
+          matching: find.byType(ChoiceChip),
+        );
+        await tester.ensureVisible(target);
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+        expect(settings.filter.id, 'deuteranomaly');
+        expect(tester.widget<ChoiceChip>(target).selected, isTrue);
+        expect(
+          tester
+              .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+              .where((chip) => chip.selected),
+          hasLength(1),
+        );
+        await capture(tester, 'chips-vi-large-${brightness.name}');
         expect(tester.takeException(), isNull);
       },
     );
