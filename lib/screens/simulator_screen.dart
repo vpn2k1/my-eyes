@@ -62,6 +62,12 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
   bool _hasFront = false;
   CameraLensDirection _lens = CameraLensDirection.back;
   String? _error;
+  double _zoom = 1;
+  double _baseZoom = 1;
+  double _minZoom = 1;
+  double _maxZoom = 1;
+  Timer? _zoomLabelTimer;
+  bool _showZoomLabel = false;
   bool get _isCamera => widget.photo == null && widget.scene == null;
   bool get _cameraWanted => !_disposed && _foreground && !_compare && !_blocked;
 
@@ -158,12 +164,15 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       }
       opening = CameraController(
         lens,
-        ResolutionPreset.high,
+        ResolutionPreset.veryHigh,
         enableAudio: false,
       );
       await opening.initialize();
       if (!_cameraWanted) return;
       final controller = opening;
+      _minZoom = await controller.getMinZoomLevel();
+      _maxZoom = await controller.getMaxZoomLevel();
+      _zoom = _minZoom;
       controller.addListener(() {
         if (_controller == controller && controller.value.hasError && mounted) {
           setState(() {
@@ -237,6 +246,21 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         );
       }
     }
+  }
+
+  Future<void> _onZoom(double scale) async {
+    final controller = _controller;
+    if (controller == null || _minZoom >= _maxZoom) return;
+    final next = (_baseZoom * scale).clamp(_minZoom, _maxZoom);
+    if (next == _zoom) return;
+    _zoom = next;
+    await controller.setZoomLevel(_zoom);
+    if (!mounted || _disposed) return;
+    _zoomLabelTimer?.cancel();
+    _zoomLabelTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted && !_disposed) setState(() => _showZoomLabel = false);
+    });
+    setState(() => _showZoomLabel = true);
   }
 
   Future<void> _openCompare() async {
@@ -313,6 +337,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
   @override
   void dispose() {
     _disposed = true;
+    _zoomLabelTimer?.cancel();
     if (_isCamera) {
       WidgetsBinding.instance.removeObserver(this);
       unawaited(_syncCamera());
@@ -433,11 +458,38 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         fit: StackFit.expand,
         children: [
           if (controller != null)
-            VisionCameraFilter(
-              program: widget.program,
-              filter: settings.filter,
-              severity: settings.severity,
-              child: _coveringPreview(controller),
+            GestureDetector(
+              onScaleStart: (_) => _baseZoom = _zoom,
+              onScaleUpdate: (details) => unawaited(_onZoom(details.scale)),
+              child: VisionCameraFilter(
+                program: widget.program,
+                filter: settings.filter,
+                severity: settings.severity,
+                child: _coveringPreview(controller),
+              ),
+            ),
+          if (controller != null && _showZoomLabel)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 140),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: brandNavy.withValues(alpha: .72),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      '${_zoom.toStringAsFixed(1)}x',
+                      style: const TextStyle(color: brandInk, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
             ),
           if (_loading)
             const Center(child: CircularProgressIndicator(color: brandInk))
@@ -586,6 +638,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AppIcon(AppIcons.eye, color: brandAmber, size: 18),
           const SizedBox(width: 8),
@@ -595,6 +648,7 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
                 'Simulating: ${filterName(context, settings.filter)}',
                 'Đang mô phỏng: ${filterName(context, settings.filter)}',
               ),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: brandInk, fontSize: 13),
             ),
@@ -614,8 +668,11 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         // Reuse the controls the photo and scene paths already use.
         child: ListenableBuilder(
           listenable: settings,
-          builder: (context, _) =>
-              ModeControls(settings: settings, category: widget.category),
+          builder: (context, _) => ModeControls(
+            settings: settings,
+            category: widget.category,
+            onSelect: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
     ),

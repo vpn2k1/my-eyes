@@ -17,6 +17,7 @@ import '../vision/vision.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/hero_card.dart';
 import '../widgets/page_column.dart';
+import '../widgets/image_source_sheet.dart';
 import '../widgets/settings_sheet.dart';
 import 'eye_test_screen.dart';
 import 'explore_screen.dart';
@@ -116,12 +117,7 @@ class _HomeState extends State<Home> {
     setState(() => _busy = true);
     ui.Image? image;
     try {
-      final file =
-          recovered ??
-          await _picker.pickImage(
-            source: ImageSource.gallery,
-            requestFullMetadata: false,
-          );
+      final file = recovered ?? await showImageSourceSheet(context);
       if (file == null || !mounted) return;
       image = await loadPhoto(file);
       if (!mounted) return;

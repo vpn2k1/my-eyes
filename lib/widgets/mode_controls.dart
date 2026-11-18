@@ -6,11 +6,19 @@ import '../vision/filters.dart';
 import '../vision/vision_copy.dart';
 
 class ModeControls extends StatelessWidget {
-  const ModeControls({super.key, required this.settings, this.category});
+  const ModeControls({
+    super.key,
+    required this.settings,
+    this.category,
+    this.onSelect,
+  });
   final SimulationSettings settings;
 
   /// Restricts the picker to one category, e.g. support-only. Null shows both.
   final FilterCategory? category;
+
+  /// Called right after a mode chip is picked, e.g. to close a host sheet.
+  final VoidCallback? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +67,10 @@ class ModeControls extends StatelessWidget {
                     materialTapTargetSize: MaterialTapTargetSize.padded,
                     label: Text(filterName(context, filter)),
                     selected: filter == settings.filter,
-                    onSelected: (_) => settings.select(filter),
+                    onSelected: (_) {
+                      settings.select(filter);
+                      onSelect?.call();
+                    },
                   ),
               ],
             ),
