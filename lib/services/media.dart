@@ -17,11 +17,14 @@ Future<ui.Image> loadScene(String asset) async {
   );
 }
 
-Future<ui.Image> loadPhoto(XFile file) async {
+Future<ui.Image> loadPhoto(XFile file, {bool mirror = false}) async {
   if (await file.length() > maxFileBytes) {
     throw const FormatException('File exceeds the size limit');
   }
-  final bytes = await compute(preparePreview, await file.readAsBytes());
+  final bytes = await compute(preparePreview, (
+    await file.readAsBytes(),
+    mirror,
+  ));
   return _decodePreview(bytes);
 }
 
@@ -35,7 +38,8 @@ Future<ui.Image> _decodePreview(Uint8List bytes) async {
 }
 
 /// Validates and bounds input before allocating a full decoded frame.
-Uint8List preparePreview(Uint8List bytes) {
+Uint8List preparePreview((Uint8List bytes, bool mirror) args) {
+  final (bytes, mirror) = args;
   if (bytes.length > maxFileBytes) {
     throw const FormatException('File exceeds the size limit');
   }
@@ -59,6 +63,7 @@ Uint8List preparePreview(Uint8List bytes) {
   final raw = decoder.decodeFrame(0);
   if (raw == null) throw const FormatException('Cannot decode image');
   var frame = img.bakeOrientation(raw);
+  if (mirror) frame = img.flipHorizontal(frame);
   if (frame.width > previewEdge || frame.height > previewEdge) {
     frame = img.copyResize(
       frame,

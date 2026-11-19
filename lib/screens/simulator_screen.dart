@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:app_settings/app_settings.dart';
@@ -164,7 +165,10 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       }
       opening = CameraController(
         lens,
-        ResolutionPreset.veryHigh,
+        // The front sensor is slower to capture at veryHigh on most devices.
+        _lens == CameraLensDirection.front
+            ? ResolutionPreset.high
+            : ResolutionPreset.veryHigh,
         enableAudio: false,
       );
       await opening.initialize();
@@ -289,6 +293,8 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
       await _cameraWork;
       final file = capture;
       if (file != null && mounted && !_disposed && _foreground) {
+        // The saved photo is already right-reading; only the live preview
+        // below gets mirrored so it behaves like a mirror while framing.
         frame = await loadPhoto(file);
         await deleteTempCapture(file);
         capture = null;
@@ -608,7 +614,15 @@ class _SimulatorState extends State<Simulator> with WidgetsBindingObserver {
         child: SizedBox(
           width: constraints.maxWidth,
           height: constraints.maxWidth / ratio,
-          child: CameraPreview(controller),
+          // Mirror the front lens so the preview acts like a mirror, matching
+          // the mirrored capture produced for that lens in services/media.dart.
+          child: _lens == CameraLensDirection.front
+              ? Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.rotationY(math.pi),
+                  child: CameraPreview(controller),
+                )
+              : CameraPreview(controller),
         ),
       );
     },
